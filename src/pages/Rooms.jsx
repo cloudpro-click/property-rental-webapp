@@ -1,17 +1,35 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import DashboardLayout from '../components/DashboardLayout';
+import RoomWizard from '../components/RoomWizard';
+import ConfirmDialog from '../components/ConfirmDialog';
 
 const Rooms = () => {
   const [showAddModal, setShowAddModal] = useState(false);
+  const [editingRoom, setEditingRoom] = useState(null);
   const [selectedBuilding, setSelectedBuilding] = useState('all');
+  const [currentStep, setCurrentStep] = useState(1);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [roomToDelete, setRoomToDelete] = useState(null);
+
+  // Lock body scroll when modal is open
+  useEffect(() => {
+    if (showAddModal) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, [showAddModal]);
 
   const [rooms, setRooms] = useState([
-    { id: 1, building: 'Building A', roomNumber: '101', floor: '1', rent: '₱8,500', status: 'occupied', tenant: 'Maria Santos', electricMeter: 'EM-001-2024' },
-    { id: 2, building: 'Building A', roomNumber: '102', floor: '1', rent: '₱8,500', status: 'vacant', tenant: null, electricMeter: 'EM-002-2024' },
-    { id: 3, building: 'Building A', roomNumber: '201', floor: '2', rent: '₱9,000', status: 'occupied', tenant: 'Ana Cruz', electricMeter: 'EM-003-2024' },
-    { id: 4, building: 'Building B', roomNumber: '101', floor: '1', rent: '₱7,500', status: 'occupied', tenant: 'Jose Reyes', electricMeter: 'EM-004-2024' },
-    { id: 5, building: 'Building B', roomNumber: '205', floor: '2', rent: '₱7,200', status: 'occupied', tenant: 'Linda Fernandez', electricMeter: 'EM-005-2024' },
-    { id: 6, building: 'Building C', roomNumber: '102', floor: '1', rent: '₱6,800', status: 'vacant', tenant: null, electricMeter: 'EM-006-2024' },
+    { id: 1, building: 'Building A', roomNumber: '101', floor: '1', rent: '₱8,500', status: 'occupied', tenant: 'Maria Santos', electricMeter: 'EM-001-2024', capacity: '2', size: '25', amenities: 'Air Conditioning, Wi-Fi', description: 'Cozy room with good ventilation' },
+    { id: 2, building: 'Building A', roomNumber: '102', floor: '1', rent: '₱8,500', status: 'vacant', tenant: null, electricMeter: 'EM-002-2024', capacity: '2', size: '25', amenities: 'Air Conditioning, Wi-Fi', description: '' },
+    { id: 3, building: 'Building A', roomNumber: '201', floor: '2', rent: '₱9,000', status: 'occupied', tenant: 'Ana Cruz', electricMeter: 'EM-003-2024', capacity: '3', size: '30', amenities: 'Air Conditioning, Wi-Fi, Balcony', description: 'Spacious room with balcony' },
+    { id: 4, building: 'Building B', roomNumber: '101', floor: '1', rent: '₱7,500', status: 'occupied', tenant: 'Jose Reyes', electricMeter: 'EM-004-2024', capacity: '2', size: '22', amenities: 'Wi-Fi', description: '' },
+    { id: 5, building: 'Building B', roomNumber: '205', floor: '2', rent: '₱7,200', status: 'occupied', tenant: 'Linda Fernandez', electricMeter: 'EM-005-2024', capacity: '1', size: '18', amenities: 'Wi-Fi, Kitchen', description: 'Studio type' },
+    { id: 6, building: 'Building C', roomNumber: '102', floor: '1', rent: '₱6,800', status: 'vacant', tenant: null, electricMeter: 'EM-006-2024', capacity: '2', size: '20', amenities: 'Wi-Fi', description: '' },
   ]);
 
   const [formData, setFormData] = useState({
@@ -19,7 +37,11 @@ const Rooms = () => {
     roomNumber: '',
     floor: '',
     rent: '',
-    electricMeter: ''
+    electricMeter: '',
+    capacity: '',
+    size: '',
+    description: '',
+    amenities: ''
   });
 
   const buildings = ['Building A', 'Building B', 'Building C'];
@@ -28,18 +50,96 @@ const Rooms = () => {
     ? rooms
     : rooms.filter(room => room.building === selectedBuilding);
 
+  const handleNext = () => {
+    setCurrentStep(currentStep + 1);
+  };
+
+  const handleBack = () => {
+    setCurrentStep(currentStep - 1);
+  };
+
   const handleSubmit = (e) => {
     e.preventDefault();
-    const newRoom = {
-      id: rooms.length + 1,
-      ...formData,
-      rent: `₱${formData.rent}`,
-      status: 'vacant',
-      tenant: null
-    };
-    setRooms([...rooms, newRoom]);
-    setFormData({ building: 'Building A', roomNumber: '', floor: '', rent: '', electricMeter: '' });
+
+    if (editingRoom) {
+      // Update existing room
+      const updatedRoom = {
+        ...editingRoom,
+        ...formData,
+        rent: `₱${formData.rent}`
+      };
+      setRooms(rooms.map(r => r.id === editingRoom.id ? updatedRoom : r));
+    } else {
+      // Add new room
+      const newRoom = {
+        id: rooms.length + 1,
+        ...formData,
+        rent: `₱${formData.rent}`,
+        status: 'vacant',
+        tenant: null
+      };
+      setRooms([...rooms, newRoom]);
+    }
+
+    setFormData({
+      building: 'Building A',
+      roomNumber: '',
+      floor: '',
+      rent: '',
+      electricMeter: '',
+      capacity: '',
+      size: '',
+      description: '',
+      amenities: ''
+    });
+    setCurrentStep(1);
     setShowAddModal(false);
+    setEditingRoom(null);
+  };
+
+  const closeModal = () => {
+    setShowAddModal(false);
+    setCurrentStep(1);
+    setEditingRoom(null);
+    setFormData({
+      building: 'Building A',
+      roomNumber: '',
+      floor: '',
+      rent: '',
+      electricMeter: '',
+      capacity: '',
+      size: '',
+      description: '',
+      amenities: ''
+    });
+  };
+
+  const handleEditRoom = (room) => {
+    setEditingRoom(room);
+    setFormData({
+      building: room.building || 'Building A',
+      roomNumber: room.roomNumber || '',
+      floor: room.floor || '',
+      rent: room.rent ? room.rent.replace('₱', '').replace(',', '') : '',
+      electricMeter: room.electricMeter || '',
+      capacity: room.capacity || '',
+      size: room.size || '',
+      description: room.description || '',
+      amenities: room.amenities || ''
+    });
+    setShowAddModal(true);
+  };
+
+  const handleDeleteRoom = (room) => {
+    setRoomToDelete(room);
+    setShowDeleteConfirm(true);
+  };
+
+  const confirmDelete = () => {
+    if (roomToDelete) {
+      setRooms(rooms.filter(r => r.id !== roomToDelete.id));
+      setRoomToDelete(null);
+    }
   };
 
   return (
@@ -109,6 +209,9 @@ const Rooms = () => {
                   Electric Meter
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
+                  Capacity
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
                   Rent
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
@@ -143,6 +246,14 @@ const Rooms = () => {
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="flex items-center text-sm text-neutral-900">
+                      <svg className="w-4 h-4 mr-1 text-neutral-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                      </svg>
+                      {room.capacity} {room.capacity === '1' ? 'person' : 'persons'}
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
                     <div className="text-sm font-semibold text-neutral-900">{room.rent}</div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
@@ -158,8 +269,18 @@ const Rooms = () => {
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm">
-                    <button className="text-primary-600 hover:text-primary-900 mr-3">Edit</button>
-                    <button className="text-secondary-600 hover:text-secondary-900">Delete</button>
+                    <button
+                      onClick={() => handleEditRoom(room)}
+                      className="text-primary-600 hover:text-primary-900 mr-3 font-medium"
+                    >
+                      Edit
+                    </button>
+                    <button
+                      onClick={() => handleDeleteRoom(room)}
+                      className="text-secondary-600 hover:text-secondary-900 font-medium"
+                    >
+                      Delete
+                    </button>
                   </td>
                 </tr>
               ))}
@@ -168,112 +289,103 @@ const Rooms = () => {
         </div>
       </div>
 
-      {/* Add Room Modal */}
+      {/* Add Room Wizard Modal */}
       {showAddModal && (
-        <div className="fixed inset-0 bg-neutral-900 bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-xl font-display font-bold text-neutral-900">Add New Room</h3>
-              <button
-                onClick={() => setShowAddModal(false)}
-                className="text-neutral-400 hover:text-neutral-600"
-              >
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
+        <div
+          className="fixed inset-0 bg-neutral-900 bg-opacity-50 z-50 overflow-y-auto"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              closeModal();
+            }
+          }}
+        >
+          <div className="min-h-screen px-2 sm:px-4 flex items-center justify-center py-4 sm:py-8">
+            <div
+              className="bg-white rounded-xl sm:rounded-2xl shadow-2xl w-full max-w-2xl relative"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Header */}
+              <div className="p-4 sm:p-5 border-b border-neutral-200">
+                <div className="flex items-center justify-between mb-2 sm:mb-3">
+                  <h3 className="text-lg sm:text-xl font-display font-bold text-neutral-900">
+                    {editingRoom ? 'Edit Room' : 'Add New Room'}
+                  </h3>
+                  <button
+                    onClick={closeModal}
+                    className="text-neutral-400 hover:text-neutral-600 p-1"
+                  >
+                    <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
 
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-neutral-700 mb-2">
-                  Building
-                </label>
-                <select
-                  required
-                  value={formData.building}
-                  onChange={(e) => setFormData({ ...formData, building: e.target.value })}
-                  className="input-field"
-                >
-                  {buildings.map((building) => (
-                    <option key={building} value={building}>{building}</option>
+                {/* Step Indicator */}
+                <div className="flex items-center justify-between">
+                  {[1, 2, 3].map((step) => (
+                    <React.Fragment key={step}>
+                      <div className="flex flex-col items-center">
+                        <div className={`w-7 h-7 sm:w-9 sm:h-9 rounded-full flex items-center justify-center text-xs sm:text-sm font-semibold transition-all ${
+                          step < currentStep
+                            ? 'bg-green-500 text-white'
+                            : step === currentStep
+                            ? 'bg-primary-600 text-white'
+                            : 'bg-neutral-200 text-neutral-500'
+                        }`}>
+                          {step < currentStep ? (
+                            <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                            </svg>
+                          ) : (
+                            step
+                          )}
+                        </div>
+                        <span className="text-[10px] sm:text-xs mt-1 sm:mt-1.5 text-neutral-600 text-center">
+                          {step === 1 ? 'Basic' : step === 2 ? 'Rent' : 'Details'}
+                        </span>
+                      </div>
+                      {step < 3 && (
+                        <div className={`flex-1 h-0.5 sm:h-1 mx-1 sm:mx-2 rounded ${
+                          step < currentStep ? 'bg-green-500' : 'bg-neutral-200'
+                        }`}></div>
+                      )}
+                    </React.Fragment>
                   ))}
-                </select>
+                </div>
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-neutral-700 mb-2">
-                  Room Number
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={formData.roomNumber}
-                  onChange={(e) => setFormData({ ...formData, roomNumber: e.target.value })}
-                  className="input-field"
-                  placeholder="101"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-neutral-700 mb-2">
-                  Floor
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={formData.floor}
-                  onChange={(e) => setFormData({ ...formData, floor: e.target.value })}
-                  className="input-field"
-                  placeholder="1"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-neutral-700 mb-2">
-                  Electric Meter Number
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={formData.electricMeter}
-                  onChange={(e) => setFormData({ ...formData, electricMeter: e.target.value })}
-                  className="input-field"
-                  placeholder="EM-007-2024"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-neutral-700 mb-2">
-                  Monthly Rent (₱)
-                </label>
-                <input
-                  type="number"
-                  required
-                  min="0"
-                  value={formData.rent}
-                  onChange={(e) => setFormData({ ...formData, rent: e.target.value })}
-                  className="input-field"
-                  placeholder="8500"
-                />
-              </div>
-
-              <div className="flex gap-3 pt-4">
-                <button
-                  type="button"
-                  onClick={() => setShowAddModal(false)}
-                  className="flex-1 px-4 py-3 bg-neutral-100 text-neutral-700 rounded-lg hover:bg-neutral-200 font-medium transition-colors"
-                >
-                  Cancel
-                </button>
-                <button type="submit" className="flex-1 btn-primary">
-                  Add Room
-                </button>
-              </div>
-            </form>
+              {/* Wizard Content */}
+              <form onSubmit={handleSubmit}>
+                <div className="p-4 sm:p-5 min-h-[320px] sm:min-h-[380px]">
+                  <RoomWizard
+                    currentStep={currentStep}
+                    formData={formData}
+                    setFormData={setFormData}
+                    buildings={buildings}
+                    handleNext={handleNext}
+                    handleBack={handleBack}
+                    handleSubmit={handleSubmit}
+                    closeModal={closeModal}
+                    isEditing={!!editingRoom}
+                  />
+                </div>
+              </form>
+            </div>
           </div>
         </div>
       )}
+
+      {/* Delete Confirmation Dialog */}
+      <ConfirmDialog
+        isOpen={showDeleteConfirm}
+        onClose={() => setShowDeleteConfirm(false)}
+        onConfirm={confirmDelete}
+        title="Delete Room"
+        message={`Are you sure you want to delete Room ${roomToDelete?.roomNumber} in ${roomToDelete?.building}? This action cannot be undone.`}
+        confirmText="Delete"
+        cancelText="Cancel"
+        type="danger"
+      />
     </DashboardLayout>
   );
 };
