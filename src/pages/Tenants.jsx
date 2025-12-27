@@ -11,6 +11,7 @@ const Tenants = () => {
   const [currentStep, setCurrentStep] = useState(1);
   const [statusFilter, setStatusFilter] = useState('all'); // all, active, moved-out
   const [searchQuery, setSearchQuery] = useState('');
+  const [openMenuId, setOpenMenuId] = useState(null);
 
   // Lock body scroll when modal is open
   useEffect(() => {
@@ -622,35 +623,99 @@ const Tenants = () => {
                     <span className={`px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
                       tenant.status === 'active'
                         ? 'bg-green-100 text-green-800'
-                        : tenant.status === 'moved-out'
-                        ? 'bg-neutral-100 text-neutral-800'
-                        : 'bg-accent-100 text-accent-800'
+                        : 'bg-neutral-100 text-neutral-800'
                     }`}>
-                      {tenant.status === 'active' ? 'Active' : tenant.status === 'moved-out' ? 'Moved Out' : tenant.status}
+                      {tenant.status === 'active' ? 'Active' : 'Moved Out'}
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm">
-                    {tenant.status === 'active' ? (
-                      <>
-                        <button className="text-primary-600 hover:text-primary-900 mr-3 font-medium">View</button>
-                        <button
-                          onClick={() => handleMoveOut(tenant)}
-                          className="text-secondary-600 hover:text-secondary-900 font-medium"
-                        >
-                          Move Out
-                        </button>
-                      </>
-                    ) : (
-                      <>
-                        <button className="text-primary-600 hover:text-primary-900 mr-3 font-medium">View History</button>
-                        <button
-                          onClick={() => handleReactivate(tenant)}
-                          className="text-green-600 hover:text-green-900 font-medium"
-                        >
-                          Re-activate
-                        </button>
-                      </>
-                    )}
+                    <div className="relative">
+                      <button
+                        onClick={() => setOpenMenuId(openMenuId === tenant.id ? null : tenant.id)}
+                        className="p-2 hover:bg-neutral-100 rounded-lg transition-colors"
+                      >
+                        <svg className="w-5 h-5 text-neutral-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
+                        </svg>
+                      </button>
+
+                      {/* Dropdown Menu */}
+                      {openMenuId === tenant.id && (
+                        <>
+                          {/* Backdrop to close menu */}
+                          <div
+                            className="fixed inset-0 z-10"
+                            onClick={() => setOpenMenuId(null)}
+                          ></div>
+
+                          {/* Menu */}
+                          <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-neutral-200 py-1 z-20">
+                            {tenant.status === 'active' ? (
+                              <>
+                                <button
+                                  onClick={() => {
+                                    // View tenant details
+                                    setOpenMenuId(null);
+                                  }}
+                                  className="w-full px-4 py-2 text-left text-sm text-neutral-700 hover:bg-neutral-50 flex items-center"
+                                >
+                                  <svg className="w-4 h-4 mr-2 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                  </svg>
+                                  View Details
+                                </button>
+
+                                <div className="border-t border-neutral-200 my-1"></div>
+
+                                <button
+                                  onClick={() => {
+                                    handleMoveOut(tenant);
+                                    setOpenMenuId(null);
+                                  }}
+                                  className="w-full px-4 py-2 text-left text-sm text-secondary-700 hover:bg-secondary-50 flex items-center"
+                                >
+                                  <svg className="w-4 h-4 mr-2 text-secondary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                                  </svg>
+                                  Move Out
+                                </button>
+                              </>
+                            ) : (
+                              <>
+                                <button
+                                  onClick={() => {
+                                    // View history
+                                    setOpenMenuId(null);
+                                  }}
+                                  className="w-full px-4 py-2 text-left text-sm text-neutral-700 hover:bg-neutral-50 flex items-center"
+                                >
+                                  <svg className="w-4 h-4 mr-2 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                  </svg>
+                                  View History
+                                </button>
+
+                                <div className="border-t border-neutral-200 my-1"></div>
+
+                                <button
+                                  onClick={() => {
+                                    handleReactivate(tenant);
+                                    setOpenMenuId(null);
+                                  }}
+                                  className="w-full px-4 py-2 text-left text-sm text-green-700 hover:bg-green-50 flex items-center"
+                                >
+                                  <svg className="w-4 h-4 mr-2 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                  </svg>
+                                  Re-activate
+                                </button>
+                              </>
+                            )}
+                          </div>
+                        </>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ))}

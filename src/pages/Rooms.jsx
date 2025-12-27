@@ -10,6 +10,10 @@ const Rooms = () => {
   const [currentStep, setCurrentStep] = useState(1);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [roomToDelete, setRoomToDelete] = useState(null);
+  const [showTenantModal, setShowTenantModal] = useState(false);
+  const [selectedRoom, setSelectedRoom] = useState(null);
+  const [showRemoveTenantConfirm, setShowRemoveTenantConfirm] = useState(false);
+  const [openMenuId, setOpenMenuId] = useState(null);
 
   // Lock body scroll when modal is open
   useEffect(() => {
@@ -24,12 +28,12 @@ const Rooms = () => {
   }, [showAddModal]);
 
   const [rooms, setRooms] = useState([
-    { id: 1, building: 'Building A', roomNumber: '101', floor: '1', rent: '₱8,500', status: 'occupied', tenant: 'Maria Santos', electricMeter: 'EM-001-2024', capacity: '2', size: '25', amenities: 'Air Conditioning, Wi-Fi', description: 'Cozy room with good ventilation' },
-    { id: 2, building: 'Building A', roomNumber: '102', floor: '1', rent: '₱8,500', status: 'vacant', tenant: null, electricMeter: 'EM-002-2024', capacity: '2', size: '25', amenities: 'Air Conditioning, Wi-Fi', description: '' },
-    { id: 3, building: 'Building A', roomNumber: '201', floor: '2', rent: '₱9,000', status: 'occupied', tenant: 'Ana Cruz', electricMeter: 'EM-003-2024', capacity: '3', size: '30', amenities: 'Air Conditioning, Wi-Fi, Balcony', description: 'Spacious room with balcony' },
-    { id: 4, building: 'Building B', roomNumber: '101', floor: '1', rent: '₱7,500', status: 'occupied', tenant: 'Jose Reyes', electricMeter: 'EM-004-2024', capacity: '2', size: '22', amenities: 'Wi-Fi', description: '' },
-    { id: 5, building: 'Building B', roomNumber: '205', floor: '2', rent: '₱7,200', status: 'occupied', tenant: 'Linda Fernandez', electricMeter: 'EM-005-2024', capacity: '1', size: '18', amenities: 'Wi-Fi, Kitchen', description: 'Studio type' },
-    { id: 6, building: 'Building C', roomNumber: '102', floor: '1', rent: '₱6,800', status: 'vacant', tenant: null, electricMeter: 'EM-006-2024', capacity: '2', size: '20', amenities: 'Wi-Fi', description: '' },
+    { id: 1, building: 'Building A', roomNumber: '101', floor: '1', rent: '₱8,500', status: 'occupied', tenant: 'Maria Santos', tenantEmail: 'maria.santos@email.com', tenantPhone: '+63 917 123 4567', moveInDate: '2024-01-15', electricMeter: 'EM-001-2024', capacity: '2', size: '25', amenities: 'Air Conditioning, Wi-Fi', description: 'Cozy room with good ventilation' },
+    { id: 2, building: 'Building A', roomNumber: '102', floor: '1', rent: '₱8,500', status: 'vacant', tenant: null, tenantEmail: null, tenantPhone: null, moveInDate: null, electricMeter: 'EM-002-2024', capacity: '2', size: '25', amenities: 'Air Conditioning, Wi-Fi', description: '' },
+    { id: 3, building: 'Building A', roomNumber: '201', floor: '2', rent: '₱9,000', status: 'occupied', tenant: 'Ana Cruz', tenantEmail: 'ana.cruz@email.com', tenantPhone: '+63 918 234 5678', moveInDate: '2024-02-01', electricMeter: 'EM-003-2024', capacity: '3', size: '30', amenities: 'Air Conditioning, Wi-Fi, Balcony', description: 'Spacious room with balcony' },
+    { id: 4, building: 'Building B', roomNumber: '101', floor: '1', rent: '₱7,500', status: 'occupied', tenant: 'Jose Reyes', tenantEmail: 'jose.reyes@email.com', tenantPhone: '+63 919 345 6789', moveInDate: '2023-12-10', electricMeter: 'EM-004-2024', capacity: '2', size: '22', amenities: 'Wi-Fi', description: '' },
+    { id: 5, building: 'Building B', roomNumber: '205', floor: '2', rent: '₱7,200', status: 'occupied', tenant: 'Linda Fernandez', tenantEmail: 'linda.fernandez@email.com', tenantPhone: '+63 920 456 7890', moveInDate: '2024-03-05', electricMeter: 'EM-005-2024', capacity: '1', size: '18', amenities: 'Wi-Fi, Kitchen', description: 'Studio type' },
+    { id: 6, building: 'Building C', roomNumber: '102', floor: '1', rent: '₱6,800', status: 'vacant', tenant: null, tenantEmail: null, tenantPhone: null, moveInDate: null, electricMeter: 'EM-006-2024', capacity: '2', size: '20', amenities: 'Wi-Fi', description: '' },
   ]);
 
   const [formData, setFormData] = useState({
@@ -139,6 +143,28 @@ const Rooms = () => {
     if (roomToDelete) {
       setRooms(rooms.filter(r => r.id !== roomToDelete.id));
       setRoomToDelete(null);
+    }
+  };
+
+  const handleViewTenant = (room) => {
+    setSelectedRoom(room);
+    setShowTenantModal(true);
+  };
+
+  const handleRemoveTenant = (room) => {
+    setSelectedRoom(room);
+    setShowRemoveTenantConfirm(true);
+  };
+
+  const confirmRemoveTenant = () => {
+    if (selectedRoom) {
+      const updatedRooms = rooms.map(r =>
+        r.id === selectedRoom.id
+          ? { ...r, status: 'vacant', tenant: null, tenantEmail: null, tenantPhone: null, moveInDate: null }
+          : r
+      );
+      setRooms(updatedRooms);
+      setSelectedRoom(null);
     }
   };
 
@@ -257,30 +283,126 @@ const Rooms = () => {
                     <div className="text-sm font-semibold text-neutral-900">{room.rent}</div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-neutral-900">{room.tenant || '-'}</div>
+                    {room.tenant ? (
+                      <button
+                        onClick={() => handleViewTenant(room)}
+                        className="text-sm text-primary-600 hover:text-primary-900 font-medium flex items-center"
+                      >
+                        <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                        </svg>
+                        {room.tenant}
+                      </button>
+                    ) : (
+                      <span className="text-sm text-neutral-400">-</span>
+                    )}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span className={`px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
                       room.status === 'occupied'
-                        ? 'bg-primary-100 text-primary-800'
+                        ? 'bg-green-100 text-green-800'
                         : 'bg-neutral-100 text-neutral-800'
                     }`}>
-                      {room.status}
+                      {room.status === 'occupied' ? 'Occupied' : 'Vacant'}
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm">
-                    <button
-                      onClick={() => handleEditRoom(room)}
-                      className="text-primary-600 hover:text-primary-900 mr-3 font-medium"
-                    >
-                      Edit
-                    </button>
-                    <button
-                      onClick={() => handleDeleteRoom(room)}
-                      className="text-secondary-600 hover:text-secondary-900 font-medium"
-                    >
-                      Delete
-                    </button>
+                    <div className="relative">
+                      <button
+                        onClick={() => setOpenMenuId(openMenuId === room.id ? null : room.id)}
+                        className="p-2 hover:bg-neutral-100 rounded-lg transition-colors"
+                      >
+                        <svg className="w-5 h-5 text-neutral-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
+                        </svg>
+                      </button>
+
+                      {/* Dropdown Menu */}
+                      {openMenuId === room.id && (
+                        <>
+                          {/* Backdrop to close menu */}
+                          <div
+                            className="fixed inset-0 z-10"
+                            onClick={() => setOpenMenuId(null)}
+                          ></div>
+
+                          {/* Menu */}
+                          <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-neutral-200 py-1 z-20">
+                            <button
+                              onClick={() => {
+                                handleEditRoom(room);
+                                setOpenMenuId(null);
+                              }}
+                              className="w-full px-4 py-2 text-left text-sm text-neutral-700 hover:bg-neutral-50 flex items-center"
+                            >
+                              <svg className="w-4 h-4 mr-2 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                              </svg>
+                              Edit Room
+                            </button>
+
+                            {room.status === 'occupied' ? (
+                              <>
+                                <button
+                                  onClick={() => {
+                                    handleViewTenant(room);
+                                    setOpenMenuId(null);
+                                  }}
+                                  className="w-full px-4 py-2 text-left text-sm text-neutral-700 hover:bg-neutral-50 flex items-center"
+                                >
+                                  <svg className="w-4 h-4 mr-2 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                                  </svg>
+                                  View Tenant
+                                </button>
+
+                                <button
+                                  onClick={() => {
+                                    handleRemoveTenant(room);
+                                    setOpenMenuId(null);
+                                  }}
+                                  className="w-full px-4 py-2 text-left text-sm text-accent-700 hover:bg-accent-50 flex items-center"
+                                >
+                                  <svg className="w-4 h-4 mr-2 text-accent-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7a4 4 0 11-8 0 4 4 0 018 0zM9 14a6 6 0 00-6 6v1h12v-1a6 6 0 00-6-6zM21 12h-6" />
+                                  </svg>
+                                  Remove Tenant
+                                </button>
+                              </>
+                            ) : (
+                              <button
+                                onClick={() => {
+                                  // Navigate to Tenants page or open add tenant modal
+                                  setOpenMenuId(null);
+                                  // TODO: Implement add tenant functionality
+                                }}
+                                className="w-full px-4 py-2 text-left text-sm text-green-700 hover:bg-green-50 flex items-center"
+                              >
+                                <svg className="w-4 h-4 mr-2 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+                                </svg>
+                                Add Tenant
+                              </button>
+                            )}
+
+                            <div className="border-t border-neutral-200 my-1"></div>
+
+                            <button
+                              onClick={() => {
+                                handleDeleteRoom(room);
+                                setOpenMenuId(null);
+                              }}
+                              className="w-full px-4 py-2 text-left text-sm text-secondary-700 hover:bg-secondary-50 flex items-center"
+                            >
+                              <svg className="w-4 h-4 mr-2 text-secondary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                              </svg>
+                              Delete Room
+                            </button>
+                          </div>
+                        </>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -374,6 +496,126 @@ const Rooms = () => {
           </div>
         </div>
       )}
+
+      {/* Tenant Details Modal */}
+      {showTenantModal && selectedRoom && (
+        <div
+          className="fixed inset-0 bg-neutral-900 bg-opacity-50 z-50 flex items-center justify-center p-4"
+          onClick={() => setShowTenantModal(false)}
+        >
+          <div
+            className="bg-white rounded-xl sm:rounded-2xl shadow-2xl w-full max-w-md"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="p-5 sm:p-6 border-b border-neutral-200">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 bg-primary-100 rounded-full flex items-center justify-center flex-shrink-0">
+                    <svg className="w-6 h-6 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                    </svg>
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-display font-bold text-neutral-900">Tenant Details</h3>
+                    <p className="text-sm text-neutral-600">
+                      {selectedRoom.building} - Room {selectedRoom.roomNumber}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShowTenantModal(false)}
+                  className="text-neutral-400 hover:text-neutral-600 p-1"
+                >
+                  <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+
+            {/* Content */}
+            <div className="p-5 sm:p-6 space-y-4">
+              {/* Tenant Name */}
+              <div>
+                <label className="block text-xs font-medium text-neutral-500 mb-1">Full Name</label>
+                <p className="text-base font-semibold text-neutral-900">{selectedRoom.tenant}</p>
+              </div>
+
+              {/* Contact Information */}
+              <div className="grid grid-cols-1 gap-4">
+                <div>
+                  <label className="block text-xs font-medium text-neutral-500 mb-1">Email Address</label>
+                  <div className="flex items-center text-sm text-neutral-900">
+                    <svg className="w-4 h-4 mr-2 text-neutral-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                    </svg>
+                    {selectedRoom.tenantEmail || '-'}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-medium text-neutral-500 mb-1">Phone Number</label>
+                  <div className="flex items-center text-sm text-neutral-900">
+                    <svg className="w-4 h-4 mr-2 text-neutral-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                    </svg>
+                    {selectedRoom.tenantPhone || '-'}
+                  </div>
+                </div>
+              </div>
+
+              {/* Move-in Date */}
+              <div>
+                <label className="block text-xs font-medium text-neutral-500 mb-1">Move-in Date</label>
+                <div className="flex items-center text-sm text-neutral-900">
+                  <svg className="w-4 h-4 mr-2 text-neutral-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  </svg>
+                  {selectedRoom.moveInDate || '-'}
+                </div>
+              </div>
+
+              {/* Monthly Rent */}
+              <div className="bg-primary-50 border border-primary-200 rounded-lg p-3">
+                <label className="block text-xs font-medium text-primary-700 mb-1">Monthly Rent</label>
+                <p className="text-lg font-bold text-primary-900">{selectedRoom.rent}</p>
+              </div>
+            </div>
+
+            {/* Footer Actions */}
+            <div className="bg-neutral-50 px-5 py-4 sm:px-6 flex justify-between gap-3 rounded-b-xl sm:rounded-b-2xl">
+              <button
+                onClick={() => handleRemoveTenant(selectedRoom)}
+                className="px-4 py-2 bg-secondary-100 text-secondary-700 rounded-lg hover:bg-secondary-200 font-medium transition-colors text-sm"
+              >
+                Remove Tenant
+              </button>
+              <button
+                onClick={() => setShowTenantModal(false)}
+                className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 font-medium transition-colors text-sm"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Remove Tenant Confirmation Dialog */}
+      <ConfirmDialog
+        isOpen={showRemoveTenantConfirm}
+        onClose={() => {
+          setShowRemoveTenantConfirm(false);
+          setShowTenantModal(false);
+        }}
+        onConfirm={confirmRemoveTenant}
+        title="Remove Tenant"
+        message={`Are you sure you want to remove ${selectedRoom?.tenant} from Room ${selectedRoom?.roomNumber}? This will mark the room as vacant.`}
+        confirmText="Remove Tenant"
+        cancelText="Cancel"
+        type="warning"
+      />
 
       {/* Delete Confirmation Dialog */}
       <ConfirmDialog
