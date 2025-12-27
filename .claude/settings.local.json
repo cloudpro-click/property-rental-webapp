@@ -8,7 +8,16 @@
       "Bash(npm audit:*)",
       "Bash(npm run build:*)",
       "Bash(npm test:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(git commit -m \"$\\(cat <<''EOF''\nUpgrade to latest versions and migrate from CRA to Vite\n\nMajor Changes:\n- Migrated from Create React App to Vite 6.0.7 for faster builds and better DX\n- Upgraded React and React DOM from 18.3.1 to 19.0.0\n- Upgraded all testing libraries to latest versions\n- Replaced Jest with Vitest 2.1.9 for faster, Vite-native testing\n- Upgraded web-vitals from 2.1.4 to 5.1.0\n\nNew Configuration:\n- Added vite.config.js with PWA plugin support\n- Added vitest.config.js for testing configuration\n- Added eslint.config.js with modern flat config \\(ESLint 9.18.0\\)\n- Moved index.html from public/ to root \\(Vite requirement\\)\n\nDependencies Updated:\n- @testing-library/jest-dom: 5.17.0 → 6.9.1\n- @testing-library/react: 13.4.0 → 16.3.1\n- @testing-library/user-event: 13.5.0 → 14.6.1\n- Replaced react-scripts with Vite and plugins\n- Added vite-plugin-pwa for PWA support with Workbox 7.4.0\n\nFile Changes:\n- Renamed .js files to .jsx for better clarity\n- Updated imports to remove service worker references \\(handled by vite-plugin-pwa\\)\n- Updated .gitignore for Vite and removed package-lock.json ignore \\(best practice\\)\n- Added package-lock.json for reproducible builds\n\nScripts Updated:\n- npm start → npm run dev \\(Vite dev server\\)\n- npm run build \\(Vite build\\)\n- npm test \\(Vitest\\)\n- Added npm run preview and npm run lint\n\nAll tests passing ✅\nProduction build successful ✅\nPWA features preserved ✅\n\n🤖 Generated with [Claude Code]\\(https://claude.com/claude-code\\)\n\nCo-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "Bash(npx tailwindcss:*)",
+      "Bash(npm run dev:*)",
+      "Bash(timeout /t 3 /nobreak)",
+      "Bash(ping:*)",
+      "Bash(npm uninstall:*)",
+      "Bash(timeout /t 5 /nobreak)",
+      "Bash(dir:*)",
+      "Bash(del nul)"
     ]
   }
 }

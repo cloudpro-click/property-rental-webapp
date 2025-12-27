@@ -1,0 +1,40 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background with Philippine Blue -->
+  <rect width="512" height="512" rx="64" fill="#0038a8"/>
+
+  <!-- Yellow accent circle (Philippine Sun inspired) -->
+  <circle cx="256" cy="256" r="200" fill="#fcd116" opacity="0.15"/>
+
+  <!-- Building icon in white -->
+  <g transform="translate(106, 106)">
+    <!-- Main building structure -->
+    <path d="M50 350V100C50 91.7157 56.7157 85 65 85H235C243.284 85 250 91.7157 250 100V350"
+          stroke="white" stroke-width="20" stroke-linecap="round" stroke-linejoin="round"/>
+
+    <!-- Roof -->
+    <path d="M30 85L150 15L270 85"
+          stroke="#fcd116" stroke-width="20" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+
+    <!-- Windows - Row 1 -->
+    <rect x="80" y="120" width="50" height="50" rx="5" fill="white"/>
+    <rect x="170" y="120" width="50" height="50" rx="5" fill="white"/>
+
+    <!-- Windows - Row 2 -->
+    <rect x="80" y="190" width="50" height="50" rx="5" fill="white"/>
+    <rect x="170" y="190" width="50" height="50" rx="5" fill="white"/>
+
+    <!-- Windows - Row 3 -->
+    <rect x="80" y="260" width="50" height="50" rx="5" fill="white"/>
+    <rect x="170" y="260" width="50" height="50" rx="5" fill="white"/>
+
+    <!-- Door -->
+    <path d="M110 350V290C110 284.477 114.477 280 120 280H180C185.523 280 190 284.477 190 290V350"
+          fill="#ce1126"/>
+
+    <!-- Door knob -->
+    <circle cx="170" cy="320" r="5" fill="#fcd116"/>
+  </g>
+
+  <!-- Base/Ground line -->
+  <rect x="60" y="440" width="392" height="8" rx="4" fill="white" opacity="0.5"/>
+</svg>
