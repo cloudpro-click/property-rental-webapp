@@ -7,6 +7,7 @@ import Dashboard from './pages/Dashboard';
 import Buildings from './pages/Buildings';
 import Rooms from './pages/Rooms';
 import Tenants from './pages/Tenants';
+import Billing from './pages/Billing';
 import RentCollection from './pages/RentCollection';
 import Reports from './pages/Reports';
 
@@ -82,6 +83,11 @@ function App() {
           <Route path="/tenants" element={
             <ProtectedRoute>
               <Tenants />
+            </ProtectedRoute>
+          } />
+          <Route path="/billing" element={
+            <ProtectedRoute>
+              <Billing />
             </ProtectedRoute>
           } />
           <Route path="/rent-collection" element={
