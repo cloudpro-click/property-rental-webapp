@@ -6,8 +6,8 @@ const Login = () => {
   const navigate = useNavigate();
   const { login } = useAuth();
   const [formData, setFormData] = useState({
-    email: '',
-    password: ''
+    email: 'admin@rentmanager.com',
+    password: 'admin123'
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
