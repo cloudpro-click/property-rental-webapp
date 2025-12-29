@@ -1,6 +1,7 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import ApolloProvider from './providers/ApolloProvider';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
@@ -49,11 +50,12 @@ const PublicRoute = ({ children }) => {
 
 function App() {
   return (
-    <AuthProvider>
-      <Router>
-        <Routes>
-          {/* Public Routes */}
-          <Route path="/login" element={
+    <ApolloProvider>
+      <AuthProvider>
+        <Router>
+          <Routes>
+            {/* Public Routes */}
+            <Route path="/login" element={
             <PublicRoute>
               <Login />
             </PublicRoute>
@@ -107,6 +109,7 @@ function App() {
         </Routes>
       </Router>
     </AuthProvider>
+    </ApolloProvider>
   );
 }
 

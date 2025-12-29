@@ -335,33 +335,64 @@ const Buildings = () => {
 
                 {/* Step Indicator */}
                 <div className="flex items-center justify-between">
-                  {[1, 2, 3, 4].map((step) => (
-                    <React.Fragment key={step}>
-                      <div className="flex flex-col items-center">
-                        <div className={`w-7 h-7 sm:w-9 sm:h-9 rounded-full flex items-center justify-center text-xs sm:text-sm font-semibold transition-all ${step < currentStep
-                            ? 'bg-green-500 text-white'
-                            : step === currentStep
-                              ? 'bg-primary-600 text-white'
-                              : 'bg-neutral-200 text-neutral-500'
-                          }`}>
-                          {step < currentStep ? (
-                            <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                            </svg>
-                          ) : (
-                            step
-                          )}
+                  {[1, 2, 3, 4].map((step) => {
+                    const getStepIcon = (stepNum) => {
+                      if (stepNum === 1) {
+                        return (
+                          <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                        );
+                      } else if (stepNum === 2) {
+                        return (
+                          <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                          </svg>
+                        );
+                      } else if (stepNum === 3) {
+                        return (
+                          <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
+                          </svg>
+                        );
+                      } else {
+                        return (
+                          <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                          </svg>
+                        );
+                      }
+                    };
+
+                    return (
+                      <React.Fragment key={step}>
+                        <div className="flex flex-col items-center">
+                          <div className={`w-7 h-7 sm:w-9 sm:h-9 rounded-full flex items-center justify-center text-xs sm:text-sm font-semibold transition-all ${step < currentStep
+                              ? 'bg-green-500 text-white'
+                              : step === currentStep
+                                ? 'bg-primary-600 text-white'
+                                : 'bg-neutral-200 text-neutral-500'
+                            }`}>
+                            {step < currentStep ? (
+                              <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                              </svg>
+                            ) : (
+                              getStepIcon(step)
+                            )}
+                          </div>
+                          <span className="text-[10px] sm:text-xs mt-1 sm:mt-1.5 text-neutral-600 text-center">
+                            {step === 1 ? 'Basic' : step === 2 ? 'Address' : step === 3 ? 'Location' : 'Photos'}
+                          </span>
                         </div>
-                        <span className="text-[10px] sm:text-xs mt-1 sm:mt-1.5 text-neutral-600 text-center">
-                          {step === 1 ? 'Basic' : step === 2 ? 'Address' : step === 3 ? 'Location' : 'Photos'}
-                        </span>
-                      </div>
-                      {step < 4 && (
-                        <div className={`flex-1 h-0.5 sm:h-1 mx-1 sm:mx-2 rounded ${step < currentStep ? 'bg-green-500' : 'bg-neutral-200'
-                          }`}></div>
-                      )}
-                    </React.Fragment>
-                  ))}
+                        {step < 4 && (
+                          <div className={`flex-1 h-0.5 sm:h-1 mx-1 sm:mx-2 rounded ${step < currentStep ? 'bg-green-500' : 'bg-neutral-200'
+                            }`}></div>
+                        )}
+                      </React.Fragment>
+                    );
+                  })}
                 </div>
               </div>
 
