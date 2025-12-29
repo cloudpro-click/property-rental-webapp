@@ -184,6 +184,24 @@ const Buildings = () => {
     setShowAddModal(true);
   };
 
+  // Fill form with demo data
+  const fillDemoData = () => {
+    setFormData({
+      name: 'Sunrise Residences',
+      address: '456 Mabini Street, Barangay San Antonio',
+      city: 'Makati',
+      province: 'Metro Manila',
+      zipCode: '1203',
+      totalRooms: '24',
+      floors: '4',
+      description: 'A modern residential building with excellent amenities, 24/7 security, and convenient location near public transportation.',
+      contactPerson: 'Maria Santos',
+      contactPhone: '+63 917 123 4567',
+      latitude: '14.5547',
+      longitude: '121.0244'
+    });
+  };
+
   return (
     <DashboardLayout>
       {/* Header */}
@@ -281,9 +299,24 @@ const Buildings = () => {
               {/* Header */}
               <div className="p-4 sm:p-5 border-b border-neutral-200">
                 <div className="flex items-center justify-between mb-2 sm:mb-3">
-                  <h3 className="text-lg sm:text-xl font-display font-bold text-neutral-900">
-                    {editingBuilding ? 'Edit Building' : 'Add New Building'}
-                  </h3>
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-lg sm:text-xl font-display font-bold text-neutral-900">
+                      {editingBuilding ? 'Edit Building' : 'Add New Building'}
+                    </h3>
+                    {!editingBuilding && (
+                      <button
+                        type="button"
+                        onClick={fillDemoData}
+                        className="px-3 py-1.5 bg-accent-100 text-accent-700 rounded-lg hover:bg-accent-200 font-medium transition-colors text-xs sm:text-sm flex items-center"
+                      >
+                        <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                        </svg>
+                        <span className="hidden sm:inline">Fill Demo Data</span>
+                        <span className="sm:hidden">Demo</span>
+                      </button>
+                    )}
+                  </div>
                   <button
                     onClick={closeModal}
                     className="text-neutral-400 hover:text-neutral-600 p-1"

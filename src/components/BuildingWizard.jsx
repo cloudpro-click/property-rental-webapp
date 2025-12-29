@@ -64,11 +64,16 @@ const BuildingWizard = ({
               Number of Floors (Optional)
             </label>
             <input
-              type="number"
-              min="1"
-              max="100"
+              type="text"
+              inputMode="numeric"
+              pattern="[0-9]*"
               value={formData.floors}
-              onChange={(e) => setFormData({ ...formData, floors: e.target.value })}
+              onChange={(e) => {
+                const value = e.target.value;
+                if (value === '' || (/^\d+$/.test(value) && parseInt(value) >= 1 && parseInt(value) <= 100)) {
+                  setFormData({ ...formData, floors: value });
+                }
+              }}
               className="input-field"
               placeholder="e.g., 3"
             />
