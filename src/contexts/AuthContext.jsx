@@ -39,16 +39,25 @@ export const AuthProvider = ({ children }) => {
   const checkAuthState = async () => {
     try {
       setLoading(true);
-      const currentUser = await getCurrentUser();
-      const session = await fetchAuthSession();
+      console.log('Checking auth state...');
 
-      setUser({
+      const currentUser = await getCurrentUser();
+      console.log('Current user:', currentUser);
+
+      const session = await fetchAuthSession();
+      console.log('Session fetched:', { hasTokens: !!session.tokens });
+
+      const userData = {
         username: currentUser.username,
         userId: currentUser.userId,
         signInDetails: currentUser.signInDetails,
         tokens: session.tokens,
-      });
+      };
+
+      console.log('Setting user data:', { username: userData.username, userId: userData.userId });
+      setUser(userData);
     } catch (err) {
+      console.log('No authenticated user:', err.message);
       setUser(null);
     } finally {
       setLoading(false);
@@ -60,19 +69,27 @@ export const AuthProvider = ({ children }) => {
       setError(null);
       setLoading(true);
 
-      const { isSignedIn, nextStep } = await signIn({
+      console.log('Attempting sign in for:', email);
+
+      const signInResult = await signIn({
         username: email,
         password,
       });
 
-      if (isSignedIn) {
+      console.log('Sign in result:', signInResult);
+
+      if (signInResult.isSignedIn) {
+        console.log('Sign in successful, checking auth state...');
         await checkAuthState();
+        console.log('Auth state updated');
         return { success: true };
       }
 
       // Handle additional steps (MFA, etc.)
-      return { success: false, nextStep };
+      console.log('Additional step required:', signInResult.nextStep);
+      return { success: false, nextStep: signInResult.nextStep };
     } catch (err) {
+      console.error('Sign in error:', err);
       setError(err.message || 'Failed to sign in');
       throw err;
     } finally {
