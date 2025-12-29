@@ -3,7 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import ApolloProvider from './providers/ApolloProvider';
 import Login from './pages/Login';
-import Register from './pages/Register';
+import UserManagement from './pages/UserManagement';
 import Dashboard from './pages/Dashboard';
 import Buildings from './pages/Buildings';
 import Rooms from './pages/Rooms';
@@ -60,13 +60,13 @@ function App() {
               <Login />
             </PublicRoute>
           } />
-          <Route path="/register" element={
-            <PublicRoute>
-              <Register />
-            </PublicRoute>
-          } />
 
           {/* Protected Routes */}
+          <Route path="/users" element={
+            <ProtectedRoute>
+              <UserManagement />
+            </ProtectedRoute>
+          } />
           <Route path="/dashboard" element={
             <ProtectedRoute>
               <Dashboard />
