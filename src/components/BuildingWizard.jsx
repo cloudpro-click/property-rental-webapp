@@ -2,6 +2,7 @@ import React, { useEffect } from 'react';
 import { useQuery } from '@apollo/client/react';
 import { GET_ALL_REGIONS, GET_PROVINCES_BY_REGION, GET_CITIES_BY_PROVINCE } from '../lib/graphql-queries';
 import SearchableSelect from './SearchableSelect';
+import PhoneInput from './PhoneInput';
 
 const BuildingWizard = ({
   currentStep,
@@ -218,7 +219,7 @@ const BuildingWizard = ({
           </div>
 
           {/* Contact Information */}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-neutral-500 mb-1.5">
                 Contact Person (Optional)
@@ -231,16 +232,15 @@ const BuildingWizard = ({
                 placeholder="e.g., Juan Dela Cruz"
               />
             </div>
+
             <div>
               <label className="block text-sm font-medium text-neutral-500 mb-1.5">
                 Contact Phone (Optional)
               </label>
-              <input
-                type="tel"
-                value={formData.contactPhone}
-                onChange={(e) => setFormData({ ...formData, contactPhone: e.target.value })}
-                className="input-field"
-                placeholder="e.g., +63 917 123 4567"
+              <PhoneInput
+                value={formData.contactPhone || ''}
+                onChange={(value) => setFormData({ ...formData, contactPhone: value })}
+                placeholder="917 123 4567"
               />
             </div>
           </div>
