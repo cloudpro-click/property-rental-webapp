@@ -1,0 +1,83 @@
+# This workflow will run tests using node and then publish a package to GitHub Packages when a release is created
+# For more information see: https://docs.github.com/en/actions/publishing-packages/publishing-nodejs-packages
+
+name: Deploy Dev Site
+
+on:
+    push:
+        branches:
+            - main
+
+permissions:
+    id-token: write
+    contents: read
+
+concurrency:
+    group: property-rentals-dev-site-deployment
+    cancel-in-progress: true
+
+jobs:
+    deploy-dev-site:
+        runs-on: ubuntu-latest
+        timeout-minutes: 10
+        environment: dev
+
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v4
+
+            - name: Setup Node.js
+              uses: actions/setup-node@v4
+              with:
+                  node-version: 20
+
+            - name: Install Yarn
+              run: npm install --global yarn
+
+            - name: Install dependencies
+              run: yarn install --frozen-lockfile
+
+            - name: Build application
+              run: CI=false yarn build:dev
+
+            - name: Configure AWS Credentials
+              uses: aws-actions/configure-aws-credentials@v4
+              with:
+                  role-to-assume: ${{secrets.AWS_ROLE_ARN}}
+                  role-session-name: GitHubActions-AdminWeb-${{github.run_id}}
+                  aws-region: ${{secrets.AWS_REGION}}
+
+            - name: Deploy to S3
+              run: |
+                  aws s3 sync ./build/ s3://${{ secrets.SITE_BUCKET_NAME }}/ \
+                    --follow-symlinks \
+                    --delete \
+                    --cache-control "public, max-age=31536000" \
+                    --exclude "*.html" \
+                    --exclude "service-worker.js" \
+                    --exclude "manifest.json"
+
+            - name: Upload HTML files with no-cache
+              run: |
+                  aws s3 sync ./build/ s3://${{ secrets.SITE_BUCKET_NAME }}/ \
+                    --exclude "*" \
+                    --include "*.html" \
+                    --include "service-worker.js" \
+                    --cache-control "max-age=0, no-cache, no-store, must-revalidate" \
+                    --metadata-directive REPLACE
+
+            - name: Invalidate CloudFront cache
+              run: |
+                  aws cloudfront create-invalidation \
+                    --distribution-id ${{ secrets.SITE_CLOUDFRONT_ID }} \
+                    --paths "/*"
+
+            - name: Deployment summary
+              run: |
+                  echo "## ✅ Deployment Complete!" >> $GITHUB_STEP_SUMMARY
+                  echo "" >> $GITHUB_STEP_SUMMARY
+                  echo "- **Environment**: dev" >> $GITHUB_STEP_SUMMARY
+                  echo "- **S3 Bucket**: ${{ secrets.SITE_BUCKET_NAME }}" >> $GITHUB_STEP_SUMMARY
+                  echo "- **CloudFront**: ${{ secrets.SITE_CLOUDFRONT_ID }}" >> $GITHUB_STEP_SUMMARY
+                  echo "- **Branch**: ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
+                  echo "- **Commit**: \`${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
