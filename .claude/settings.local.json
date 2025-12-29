@@ -23,7 +23,9 @@
       "Bash(xargs ls:*)",
       "Bash(wc:*)",
       "Bash(git -C \"d:\\\\Projects\\\\Property Rental\\\\property-rental-webapp\" log --oneline -10)",
-      "Bash(git rm:*)"
+      "Bash(git rm:*)",
+      "Bash(git checkout:*)",
+      "Bash(git clean:*)"
     ]
   }
 }
