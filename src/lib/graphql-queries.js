@@ -25,9 +25,9 @@ export const GET_ALL_REGIONS = gql`
   query GetAllRegions {
     getAllRegions {
       regions {
-        id
-        name
         code
+        name
+        psgc_code
       }
     }
   }
@@ -38,13 +38,11 @@ export const GET_ALL_REGIONS = gql`
 // ============================================================================
 
 export const GET_PROVINCES_BY_REGION = gql`
-  query GetProvincesByRegion($regionId: ID!) {
-    getProvincesByRegion(regionId: $regionId) {
+  query GetProvincesByRegion($region_psgc_code: NonEmptyString!) {
+    getProvincesByRegion(region_psgc_code: $region_psgc_code) {
       provinces {
-        id
+        psgc_code
         name
-        code
-        regionId
       }
     }
   }
@@ -55,13 +53,11 @@ export const GET_PROVINCES_BY_REGION = gql`
 // ============================================================================
 
 export const GET_CITIES_BY_PROVINCE = gql`
-  query GetCitiesByProvince($provinceId: ID!) {
-    getCitiesByProvince(provinceId: $provinceId) {
+  query GetCitiesByProvince($province_psgc_code: NonEmptyString!) {
+    getCitiesByProvince(province_psgc_code: $province_psgc_code) {
       cities {
-        id
+        psgc_code
         name
-        code
-        provinceId
       }
     }
   }

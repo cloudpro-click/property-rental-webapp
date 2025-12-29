@@ -33,7 +33,7 @@ const Buildings = () => {
     region: '',
     city: '',
     province: '',
-    zipCode: '',
+    landmark: '',
     totalRooms: '',
     floors: '',
     description: '',
@@ -154,7 +154,7 @@ const Buildings = () => {
       region: '',
       city: '',
       province: '',
-      zipCode: '',
+      landmark: '',
       totalRooms: '',
       floors: '',
       description: '',
@@ -174,7 +174,7 @@ const Buildings = () => {
       region: building.region || '',
       city: building.city || '',
       province: building.province || '',
-      zipCode: building.zipCode || '',
+      landmark: building.landmark || '',
       totalRooms: building.totalRooms?.toString() || '',
       floors: building.floors?.toString() || '',
       description: building.description || '',
@@ -193,10 +193,10 @@ const Buildings = () => {
     setFormData({
       name: 'Sampaguita Apartments',
       address: '123 Mabini Street, Barangay San Isidro',
-      region: 'NCR',
-      city: 'Quezon City',
-      province: 'Metro Manila',
-      zipCode: '1100',
+      region: '', // Will be filled via dropdown
+      city: '', // Will be filled via dropdown
+      province: '', // Will be filled via dropdown
+      landmark: 'Near SM North EDSA',
       totalRooms: '24',
       floors: '4',
       description: 'Modern apartment building with spacious units, parking spaces, and 24/7 security. Located near schools, hospitals, and shopping centers.',
@@ -374,13 +374,7 @@ const Buildings = () => {
                                 ? 'bg-primary-600 text-white'
                                 : 'bg-neutral-200 text-neutral-500'
                             }`}>
-                            {step < currentStep ? (
-                              <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                              </svg>
-                            ) : (
-                              getStepIcon(step)
-                            )}
+                            {getStepIcon(step)}
                           </div>
                           <span className="text-[10px] sm:text-xs mt-1 sm:mt-1.5 text-neutral-600 text-center">
                             {step === 1 ? 'Basic' : step === 2 ? 'Address' : step === 3 ? 'Location' : 'Photos'}

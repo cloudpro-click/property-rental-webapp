@@ -12,7 +12,7 @@ if (!GRAPHQL_API_URL) {
 // HTTP Link - connects to GraphQL API
 const httpLink = createHttpLink({
   uri: GRAPHQL_API_URL,
-  credentials: 'include', // Include cookies for authentication
+  credentials: 'same-origin', // Changed from 'include' to avoid CORS issues with wildcard origins
 });
 
 // Auth Link - adds authentication token to requests

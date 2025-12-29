@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
-import { getRegions, getProvinces, getCities } from '../data/philippineLocations';
+import React, { useEffect } from 'react';
+import { useQuery } from '@apollo/client/react';
+import { GET_ALL_REGIONS, GET_PROVINCES_BY_REGION, GET_CITIES_BY_PROVINCE } from '../lib/graphql-queries';
 import SearchableSelect from './SearchableSelect';
 
 const BuildingWizard = ({
@@ -19,37 +20,41 @@ const BuildingWizard = ({
   fillDemoData
 }) => {
   const totalSteps = 4;
-  const regions = getRegions();
-  const [provinces, setProvinces] = useState([]);
-  const [cities, setCities] = useState([]);
 
-  // Update provinces when region changes
+  // Fetch all regions
+  const { data: regionsData, loading: regionsLoading } = useQuery(GET_ALL_REGIONS);
+
+  // Fetch provinces when region is selected
+  const { data: provincesData, loading: provincesLoading } = useQuery(GET_PROVINCES_BY_REGION, {
+    variables: { region_psgc_code: formData.region },
+    skip: !formData.region
+  });
+
+  // Fetch cities when province is selected
+  const { data: citiesData, loading: citiesLoading } = useQuery(GET_CITIES_BY_PROVINCE, {
+    variables: { province_psgc_code: formData.province },
+    skip: !formData.province
+  });
+
+  // Extract data from GraphQL responses
+  const regions = regionsData?.getAllRegions?.regions || [];
+  const provinces = provincesData?.getProvincesByRegion?.provinces || [];
+  const cities = citiesData?.getCitiesByProvince?.cities || [];
+
+  // Reset province and city when region changes
   useEffect(() => {
     if (formData.region) {
-      setProvinces(getProvinces(formData.region));
       // Reset province and city when region changes
-      if (!getProvinces(formData.region).includes(formData.province)) {
-        setFormData(prev => ({ ...prev, province: '', city: '' }));
-        setCities([]);
-      }
-    } else {
-      setProvinces([]);
-      setCities([]);
+      setFormData(prev => ({ ...prev, province: '', city: '' }));
     }
   }, [formData.region]);
 
-  // Update cities when province changes
+  // Reset city when province changes
   useEffect(() => {
-    if (formData.region && formData.province) {
-      setCities(getCities(formData.region, formData.province));
-      // Reset city when province changes
-      if (!getCities(formData.region, formData.province).includes(formData.city)) {
-        setFormData(prev => ({ ...prev, city: '' }));
-      }
-    } else {
-      setCities([]);
+    if (formData.province) {
+      setFormData(prev => ({ ...prev, city: '' }));
     }
-  }, [formData.province, formData.region]);
+  }, [formData.province]);
 
   return (
     <>
@@ -161,7 +166,7 @@ const BuildingWizard = ({
               options={regions}
               placeholder="Select Region"
               displayKey="name"
-              valueKey="code"
+              valueKey="psgc_code"
             />
           </div>
 
@@ -176,6 +181,8 @@ const BuildingWizard = ({
                 onChange={(value) => setFormData({ ...formData, province: value, city: '' })}
                 options={provinces}
                 placeholder="Select Province"
+                displayKey="name"
+                valueKey="psgc_code"
                 disabled={!formData.region}
               />
             </div>
@@ -188,23 +195,26 @@ const BuildingWizard = ({
                 onChange={(value) => setFormData({ ...formData, city: value })}
                 options={cities}
                 placeholder="Select City"
+                displayKey="name"
+                valueKey="psgc_code"
                 disabled={!formData.province}
               />
             </div>
           </div>
 
-          {/* Zip Code */}
+          {/* Landmark */}
           <div>
             <label className="block text-sm font-medium text-neutral-500 mb-1.5">
-              Zip Code (Optional)
+              Landmark (Optional)
             </label>
             <input
               type="text"
-              value={formData.zipCode}
-              onChange={(e) => setFormData({ ...formData, zipCode: e.target.value })}
+              value={formData.landmark || ''}
+              onChange={(e) => setFormData({ ...formData, landmark: e.target.value })}
               className="input-field"
-              placeholder="e.g., 1000"
+              placeholder="e.g., Near SM Mall, Beside City Hall"
             />
+            <p className="text-xs text-neutral-500 mt-1">Nearby landmark for easier location</p>
           </div>
 
           {/* Contact Information */}
@@ -392,9 +402,23 @@ const BuildingWizard = ({
             e.preventDefault();
             currentStep === 1 ? closeModal() : handleBack();
           }}
-          className="px-4 sm:px-5 py-2 bg-neutral-100 text-neutral-700 rounded-lg hover:bg-neutral-200 font-medium transition-colors text-sm sm:text-base"
+          className="px-4 sm:px-5 py-2 bg-neutral-100 text-neutral-700 rounded-lg hover:bg-neutral-200 font-medium transition-colors text-sm sm:text-base flex items-center gap-2"
         >
-          {currentStep === 1 ? 'Cancel' : 'Back'}
+          {currentStep === 1 ? (
+            <>
+              <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+              Cancel
+            </>
+          ) : (
+            <>
+              <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+              </svg>
+              Back
+            </>
+          )}
         </button>
 
         {currentStep < totalSteps ? (
@@ -404,7 +428,7 @@ const BuildingWizard = ({
               e.preventDefault();
               handleNext();
             }}
-            className="btn-primary disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base"
+            className="btn-primary disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base flex items-center gap-2"
             disabled={
               (currentStep === 1 && (!formData.name || !formData.totalRooms || !formData.floors)) ||
               (currentStep === 2 && (!formData.address || !formData.region || !formData.province || !formData.city)) ||
@@ -413,11 +437,29 @@ const BuildingWizard = ({
           >
             <span className="hidden sm:inline">Next Step</span>
             <span className="sm:hidden">Next</span>
+            <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
           </button>
         ) : (
-          <button type="submit" className="btn-primary text-sm sm:text-base">
-            <span className="hidden sm:inline">{isEditing ? 'Update Building' : 'Create Building'}</span>
-            <span className="sm:hidden">{isEditing ? 'Update' : 'Create'}</span>
+          <button type="submit" className="btn-primary text-sm sm:text-base flex items-center gap-2">
+            {isEditing ? (
+              <>
+                <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+                <span className="hidden sm:inline">Update Building</span>
+                <span className="sm:hidden">Update</span>
+              </>
+            ) : (
+              <>
+                <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+                <span className="hidden sm:inline">Create Building</span>
+                <span className="sm:hidden">Create</span>
+              </>
+            )}
           </button>
         )}
       </div>
