@@ -1,4 +1,6 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
+import { getRegions, getProvinces, getCities } from '../data/philippineLocations';
+import SearchableSelect from './SearchableSelect';
 
 const BuildingWizard = ({
   currentStep,
@@ -13,9 +15,41 @@ const BuildingWizard = ({
   handleBack,
   handleSubmit,
   closeModal,
-  isEditing = false
+  isEditing = false,
+  fillDemoData
 }) => {
   const totalSteps = 4;
+  const regions = getRegions();
+  const [provinces, setProvinces] = useState([]);
+  const [cities, setCities] = useState([]);
+
+  // Update provinces when region changes
+  useEffect(() => {
+    if (formData.region) {
+      setProvinces(getProvinces(formData.region));
+      // Reset province and city when region changes
+      if (!getProvinces(formData.region).includes(formData.province)) {
+        setFormData(prev => ({ ...prev, province: '', city: '' }));
+        setCities([]);
+      }
+    } else {
+      setProvinces([]);
+      setCities([]);
+    }
+  }, [formData.region]);
+
+  // Update cities when province changes
+  useEffect(() => {
+    if (formData.region && formData.province) {
+      setCities(getCities(formData.region, formData.province));
+      // Reset city when province changes
+      if (!getCities(formData.region, formData.province).includes(formData.city)) {
+        setFormData(prev => ({ ...prev, city: '' }));
+      }
+    } else {
+      setCities([]);
+    }
+  }, [formData.province, formData.region]);
 
   return (
     <>
@@ -31,7 +65,6 @@ const BuildingWizard = ({
             </label>
             <input
               type="text"
-              required
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
               className="input-field"
@@ -46,12 +79,15 @@ const BuildingWizard = ({
               Total Rooms/Units <span className="text-secondary-500">*</span>
             </label>
             <input
-              type="number"
-              required
-              min="1"
-              max="1000"
+              type="text"
+              inputMode="numeric"
               value={formData.totalRooms}
-              onChange={(e) => setFormData({ ...formData, totalRooms: e.target.value })}
+              onChange={(e) => {
+                const value = e.target.value;
+                if (value === '' || (/^\d+$/.test(value) && parseInt(value) >= 1 && parseInt(value) <= 1000)) {
+                  setFormData({ ...formData, totalRooms: value });
+                }
+              }}
               className="input-field"
               placeholder="e.g., 10"
             />
@@ -60,13 +96,12 @@ const BuildingWizard = ({
 
           {/* Number of Floors */}
           <div>
-            <label className="block text-sm font-medium text-neutral-500 mb-1.5">
-              Number of Floors (Optional)
+            <label className="block text-sm font-medium text-neutral-700 mb-1.5">
+              Number of Floors <span className="text-secondary-500">*</span>
             </label>
             <input
               type="text"
               inputMode="numeric"
-              pattern="[0-9]*"
               value={formData.floors}
               onChange={(e) => {
                 const value = e.target.value;
@@ -107,7 +142,6 @@ const BuildingWizard = ({
             </label>
             <input
               type="text"
-              required
               value={formData.address}
               onChange={(e) => setFormData({ ...formData, address: e.target.value })}
               className="input-field"
@@ -116,32 +150,45 @@ const BuildingWizard = ({
             <p className="text-xs text-neutral-500 mt-1">Street address and barangay</p>
           </div>
 
-          {/* City and Province */}
+          {/* Region */}
+          <div>
+            <label className="block text-sm font-medium text-neutral-700 mb-1.5">
+              Region <span className="text-secondary-500">*</span>
+            </label>
+            <SearchableSelect
+              value={formData.region || ''}
+              onChange={(value) => setFormData({ ...formData, region: value, province: '', city: '' })}
+              options={regions}
+              placeholder="Select Region"
+              displayKey="name"
+              valueKey="code"
+            />
+          </div>
+
+          {/* Province and City */}
           <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-neutral-700 mb-1.5">
-                City/Municipality <span className="text-secondary-500">*</span>
-              </label>
-              <input
-                type="text"
-                required
-                value={formData.city}
-                onChange={(e) => setFormData({ ...formData, city: e.target.value })}
-                className="input-field"
-                placeholder="e.g., Manila"
-              />
-            </div>
             <div>
               <label className="block text-sm font-medium text-neutral-700 mb-1.5">
                 Province <span className="text-secondary-500">*</span>
               </label>
-              <input
-                type="text"
-                required
-                value={formData.province}
-                onChange={(e) => setFormData({ ...formData, province: e.target.value })}
-                className="input-field"
-                placeholder="e.g., Metro Manila"
+              <SearchableSelect
+                value={formData.province || ''}
+                onChange={(value) => setFormData({ ...formData, province: value, city: '' })}
+                options={provinces}
+                placeholder="Select Province"
+                disabled={!formData.region}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-neutral-700 mb-1.5">
+                City/Municipality <span className="text-secondary-500">*</span>
+              </label>
+              <SearchableSelect
+                value={formData.city || ''}
+                onChange={(value) => setFormData({ ...formData, city: value })}
+                options={cities}
+                placeholder="Select City"
+                disabled={!formData.province}
               />
             </div>
           </div>
@@ -237,9 +284,8 @@ const BuildingWizard = ({
                 Latitude <span className="text-secondary-500">*</span>
               </label>
               <input
-                type="number"
-                step="any"
-                required
+                type="text"
+                inputMode="decimal"
                 value={formData.latitude}
                 onChange={(e) => setFormData({ ...formData, latitude: e.target.value })}
                 className="input-field"
@@ -251,9 +297,8 @@ const BuildingWizard = ({
                 Longitude <span className="text-secondary-500">*</span>
               </label>
               <input
-                type="number"
-                step="any"
-                required
+                type="text"
+                inputMode="decimal"
                 value={formData.longitude}
                 onChange={(e) => setFormData({ ...formData, longitude: e.target.value })}
                 className="input-field"
@@ -361,8 +406,8 @@ const BuildingWizard = ({
             }}
             className="btn-primary disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base"
             disabled={
-              (currentStep === 1 && (!formData.name || !formData.totalRooms)) ||
-              (currentStep === 2 && (!formData.address || !formData.city || !formData.province)) ||
+              (currentStep === 1 && (!formData.name || !formData.totalRooms || !formData.floors)) ||
+              (currentStep === 2 && (!formData.address || !formData.region || !formData.province || !formData.city)) ||
               (currentStep === 3 && (!formData.latitude || !formData.longitude))
             }
           >

@@ -30,6 +30,7 @@ const Buildings = () => {
   const [formData, setFormData] = useState({
     name: '',
     address: '',
+    region: '',
     city: '',
     province: '',
     zipCode: '',
@@ -122,6 +123,7 @@ const Buildings = () => {
     setFormData({
       name: '',
       address: '',
+      region: '',
       city: '',
       province: '',
       zipCode: '',
@@ -149,6 +151,7 @@ const Buildings = () => {
     setFormData({
       name: '',
       address: '',
+      region: '',
       city: '',
       province: '',
       zipCode: '',
@@ -168,6 +171,7 @@ const Buildings = () => {
     setFormData({
       name: building.name || '',
       address: building.address || '',
+      region: building.region || '',
       city: building.city || '',
       province: building.province || '',
       zipCode: building.zipCode || '',
@@ -187,18 +191,20 @@ const Buildings = () => {
   // Fill form with demo data
   const fillDemoData = () => {
     setFormData({
-      name: 'Sunrise Residences',
-      address: '456 Mabini Street, Barangay San Antonio',
-      city: 'Makati',
+      name: 'Sampaguita Apartments',
+      address: '123 Mabini Street, Barangay San Isidro',
+      region: 'NCR',
+      city: 'Quezon City',
       province: 'Metro Manila',
-      zipCode: '1203',
+      zipCode: '1100',
       totalRooms: '24',
       floors: '4',
-      description: 'A modern residential building with excellent amenities, 24/7 security, and convenient location near public transportation.',
-      contactPerson: 'Maria Santos',
-      contactPhone: '+63 917 123 4567',
-      latitude: '14.5547',
-      longitude: '121.0244'
+      description: 'Modern apartment building with spacious units, parking spaces, and 24/7 security. Located near schools, hospitals, and shopping centers.',
+      contactPerson: 'Maria Clara Santos',
+      contactPhone: '+63 917 555 1234',
+      latitude: '14.676208',
+      longitude: '121.043861',
+      photos: []
     });
   };
 
@@ -362,7 +368,7 @@ const Buildings = () => {
               </div>
 
               {/* Wizard Content */}
-              <form onSubmit={handleSubmit}>
+              <form onSubmit={handleSubmit} noValidate>
                 <div className="p-4 sm:p-5 min-h-[320px] sm:min-h-[380px]">
                   <BuildingWizard
                     currentStep={currentStep}
@@ -378,6 +384,7 @@ const Buildings = () => {
                     handleSubmit={handleSubmit}
                     closeModal={closeModal}
                     isEditing={!!editingBuilding}
+                    fillDemoData={fillDemoData}
                   />
                 </div>
               </form>
