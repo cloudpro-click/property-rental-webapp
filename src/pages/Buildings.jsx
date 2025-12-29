@@ -184,6 +184,24 @@ const Buildings = () => {
     setShowAddModal(true);
   };
 
+  const fillDemoData = () => {
+    setFormData({
+      name: 'Sampaguita Apartments',
+      address: '123 Mabini Street, Barangay San Isidro',
+      city: 'Quezon City',
+      province: 'Metro Manila',
+      zipCode: '1100',
+      totalRooms: '24',
+      floors: '4',
+      description: 'Modern apartment building with spacious units, parking spaces, and 24/7 security. Located near schools, hospitals, and shopping centers.',
+      contactPerson: 'Maria Clara Santos',
+      contactPhone: '+63 917 555 1234',
+      latitude: '14.676208',
+      longitude: '121.043861',
+      photos: []
+    });
+  };
+
   return (
     <DashboardLayout>
       {/* Header */}
@@ -284,14 +302,29 @@ const Buildings = () => {
                   <h3 className="text-lg sm:text-xl font-display font-bold text-neutral-900">
                     {editingBuilding ? 'Edit Building' : 'Add New Building'}
                   </h3>
-                  <button
-                    onClick={closeModal}
-                    className="text-neutral-400 hover:text-neutral-600 p-1"
-                  >
-                    <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                  </button>
+                  <div className="flex items-center gap-2">
+                    {!editingBuilding && (
+                      <button
+                        type="button"
+                        onClick={fillDemoData}
+                        className="px-3 py-1.5 text-xs sm:text-sm font-medium text-accent-700 bg-accent-50 hover:bg-accent-100 rounded-lg transition-colors flex items-center gap-1.5"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                        </svg>
+                        <span className="hidden sm:inline">Fill Demo Data</span>
+                        <span className="sm:hidden">Demo</span>
+                      </button>
+                    )}
+                    <button
+                      onClick={closeModal}
+                      className="text-neutral-400 hover:text-neutral-600 p-1"
+                    >
+                      <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  </div>
                 </div>
 
                 {/* Step Indicator */}
@@ -345,6 +378,7 @@ const Buildings = () => {
                     handleSubmit={handleSubmit}
                     closeModal={closeModal}
                     isEditing={!!editingBuilding}
+                    fillDemoData={fillDemoData}
                   />
                 </div>
               </form>

@@ -13,7 +13,8 @@ const BuildingWizard = ({
   handleBack,
   handleSubmit,
   closeModal,
-  isEditing = false
+  isEditing = false,
+  fillDemoData
 }) => {
   const totalSteps = 4;
 
