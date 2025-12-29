@@ -338,13 +338,12 @@ const Buildings = () => {
                   {[1, 2, 3, 4].map((step) => (
                     <React.Fragment key={step}>
                       <div className="flex flex-col items-center">
-                        <div className={`w-7 h-7 sm:w-9 sm:h-9 rounded-full flex items-center justify-center text-xs sm:text-sm font-semibold transition-all ${
-                          step < currentStep
+                        <div className={`w-7 h-7 sm:w-9 sm:h-9 rounded-full flex items-center justify-center text-xs sm:text-sm font-semibold transition-all ${step < currentStep
                             ? 'bg-green-500 text-white'
                             : step === currentStep
-                            ? 'bg-primary-600 text-white'
-                            : 'bg-neutral-200 text-neutral-500'
-                        }`}>
+                              ? 'bg-primary-600 text-white'
+                              : 'bg-neutral-200 text-neutral-500'
+                          }`}>
                           {step < currentStep ? (
                             <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
@@ -358,9 +357,8 @@ const Buildings = () => {
                         </span>
                       </div>
                       {step < 4 && (
-                        <div className={`flex-1 h-0.5 sm:h-1 mx-1 sm:mx-2 rounded ${
-                          step < currentStep ? 'bg-green-500' : 'bg-neutral-200'
-                        }`}></div>
+                        <div className={`flex-1 h-0.5 sm:h-1 mx-1 sm:mx-2 rounded ${step < currentStep ? 'bg-green-500' : 'bg-neutral-200'
+                          }`}></div>
                       )}
                     </React.Fragment>
                   ))}
