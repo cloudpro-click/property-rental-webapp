@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../contexts/AuthContext';
 
 const Register = () => {
   const navigate = useNavigate();
-  const { register } = useAuth();
+  const { signUp, confirmSignUp, error: authError } = useAuth();
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -13,6 +13,8 @@ const Register = () => {
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [needsConfirmation, setNeedsConfirmation] = useState(false);
+  const [confirmationCode, setConfirmationCode] = useState('');
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -23,13 +25,45 @@ const Register = () => {
       return;
     }
 
+    if (formData.password.length < 8) {
+      setError('Password must be at least 8 characters long');
+      return;
+    }
+
     setLoading(true);
 
     try {
-      await register(formData.name, formData.email, formData.password);
-      navigate('/dashboard');
+      const result = await signUp(formData.email, formData.password, {
+        name: formData.name,
+      });
+
+      if (result.nextStep?.signUpStep === 'CONFIRM_SIGN_UP') {
+        setNeedsConfirmation(true);
+        setError('Please check your email for the verification code');
+      } else if (result.isSignUpComplete) {
+        navigate('/dashboard');
+      }
     } catch (err) {
-      setError('Registration failed. Please try again.');
+      setError(err.message || 'Registration failed. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleConfirmSignUp = async (e) => {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+
+    try {
+      const result = await confirmSignUp(formData.email, confirmationCode);
+
+      if (result.isSignUpComplete) {
+        // Auto sign in after confirmation
+        navigate('/login');
+      }
+    } catch (err) {
+      setError(err.message || 'Failed to confirm sign up');
     } finally {
       setLoading(false);
     }
@@ -79,13 +113,46 @@ const Register = () => {
             Create Account
           </h2>
 
-          {error && (
-            <div className="mb-4 p-3 bg-secondary-50 border border-secondary-200 text-secondary-700 rounded-lg text-sm">
-              {error}
+          {(error || authError) && (
+            <div className={`mb-4 p-3 rounded-lg text-sm ${
+              needsConfirmation
+                ? 'bg-blue-50 border border-blue-200 text-blue-700'
+                : 'bg-secondary-50 border border-secondary-200 text-secondary-700'
+            }`}>
+              {error || authError}
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-5">
+          {needsConfirmation ? (
+            <form onSubmit={handleConfirmSignUp} className="space-y-5">
+              <div>
+                <label htmlFor="confirmationCode" className="block text-sm font-medium text-neutral-700 mb-2">
+                  Verification Code
+                </label>
+                <input
+                  type="text"
+                  id="confirmationCode"
+                  value={confirmationCode}
+                  onChange={(e) => setConfirmationCode(e.target.value)}
+                  required
+                  className="input-field"
+                  placeholder="Enter 6-digit code"
+                />
+                <p className="text-xs text-neutral-500 mt-1">
+                  We sent a verification code to {formData.email}
+                </p>
+              </div>
+
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {loading ? 'Verifying...' : 'Verify Email'}
+              </button>
+            </form>
+          ) : (
+            <form onSubmit={handleSubmit} className="space-y-5">
             <div>
               <label htmlFor="name" className="block text-sm font-medium text-neutral-700 mb-2">
                 Full Name
@@ -158,6 +225,7 @@ const Register = () => {
               {loading ? 'Creating account...' : 'Create Account'}
             </button>
           </form>
+          )}
 
           <div className="mt-6 text-center text-sm text-neutral-600">
             Already have an account?{' '}

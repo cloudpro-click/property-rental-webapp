@@ -1,13 +1,13 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../contexts/AuthContext';
 
 const Login = () => {
   const navigate = useNavigate();
-  const { login } = useAuth();
+  const { signIn, error: authError } = useAuth();
   const [formData, setFormData] = useState({
-    email: 'admin@rentmanager.com',
-    password: 'admin123'
+    email: '',
+    password: ''
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -15,13 +15,24 @@ const Login = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+
+    if (!formData.email || !formData.password) {
+      setError('Please fill in all fields');
+      return;
+    }
+
     setLoading(true);
 
     try {
-      await login(formData.email, formData.password);
-      navigate('/dashboard');
+      const result = await signIn(formData.email, formData.password);
+
+      if (result.success) {
+        navigate('/dashboard');
+      } else if (result.nextStep) {
+        setError(`Additional step required: ${result.nextStep.signInStep}`);
+      }
     } catch (err) {
-      setError('Invalid credentials. Please try again.');
+      setError(err.message || 'Invalid credentials. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -74,9 +85,9 @@ const Login = () => {
             Welcome Back
           </h2>
 
-          {error && (
+          {(error || authError) && (
             <div className="mb-4 p-3 bg-secondary-50 border border-secondary-200 text-secondary-700 rounded-lg text-sm">
-              {error}
+              {error || authError}
             </div>
           )}
 
