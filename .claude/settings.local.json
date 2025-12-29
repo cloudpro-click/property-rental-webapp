@@ -36,7 +36,8 @@
       "Bash(taskkill:*)",
       "Bash(yarn dev)",
       "Bash(yarn install)",
-      "Bash(del yarn.lock)"
+      "Bash(del yarn.lock)",
+      "Bash(git -C \"d:\\\\Projects\\\\property rental\\\\property-rental-webapp\" status)"
     ]
   }
 }

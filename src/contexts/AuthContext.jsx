@@ -8,6 +8,7 @@ import {
   resendSignUpCode,
   resetPassword,
   confirmResetPassword,
+  confirmSignIn,
   getCurrentUser,
   fetchAuthSession,
 } from 'aws-amplify/auth';
@@ -90,8 +91,28 @@ export const AuthProvider = ({ children }) => {
       return { success: false, nextStep: signInResult.nextStep };
     } catch (err) {
       console.error('Sign in error:', err);
-      setError(err.message || 'Failed to sign in');
-      throw err;
+
+      // Handle specific Cognito errors
+      let errorMessage = 'Failed to sign in';
+
+      if (err.name === 'UserNotFoundException') {
+        errorMessage = 'User not found. Please check your email address.';
+      } else if (err.name === 'NotAuthorizedException') {
+        errorMessage = 'Incorrect email or password. Please try again.';
+      } else if (err.name === 'UserNotConfirmedException') {
+        errorMessage = 'Email not verified. Please check your inbox for the verification code.';
+      } else if (err.name === 'PasswordResetRequiredException') {
+        errorMessage = 'Password reset required. Please contact your administrator.';
+      } else if (err.name === 'TooManyRequestsException') {
+        errorMessage = 'Too many failed attempts. Please try again later.';
+      } else if (err.name === 'InvalidParameterException') {
+        errorMessage = 'Invalid email or password format.';
+      } else if (err.message) {
+        errorMessage = err.message;
+      }
+
+      setError(errorMessage);
+      throw new Error(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -121,8 +142,25 @@ export const AuthProvider = ({ children }) => {
         nextStep,
       };
     } catch (err) {
-      setError(err.message || 'Failed to sign up');
-      throw err;
+      console.error('Sign up error:', err);
+
+      // Handle specific Cognito errors
+      let errorMessage = 'Failed to create user';
+
+      if (err.name === 'UsernameExistsException') {
+        errorMessage = 'An account with this email already exists.';
+      } else if (err.name === 'InvalidPasswordException') {
+        errorMessage = 'Password does not meet requirements. Must be at least 8 characters with uppercase, lowercase, number, and special character.';
+      } else if (err.name === 'InvalidParameterException') {
+        errorMessage = 'Invalid email or password format.';
+      } else if (err.name === 'TooManyRequestsException') {
+        errorMessage = 'Too many requests. Please try again later.';
+      } else if (err.message) {
+        errorMessage = err.message;
+      }
+
+      setError(errorMessage);
+      throw new Error(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -206,6 +244,52 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  const handleConfirmNewPassword = async (newPassword) => {
+    try {
+      setError(null);
+      setLoading(true);
+
+      console.log('Confirming new password...');
+
+      const result = await confirmSignIn({
+        challengeResponse: newPassword,
+      });
+
+      console.log('Confirm new password result:', result);
+
+      if (result.isSignedIn) {
+        console.log('Password updated, checking auth state...');
+        await checkAuthState();
+        console.log('Auth state check completed');
+        return { success: true };
+      }
+
+      setLoading(false);
+      return { success: false, nextStep: result.nextStep };
+    } catch (err) {
+      console.error('Confirm new password error:', err);
+
+      // Handle specific Cognito errors
+      let errorMessage = 'Failed to set new password';
+
+      if (err.name === 'InvalidPasswordException') {
+        errorMessage = 'Password does not meet requirements. Must be at least 8 characters with uppercase, lowercase, number, and special character.';
+      } else if (err.name === 'InvalidParameterException') {
+        errorMessage = 'Invalid password format.';
+      } else if (err.name === 'NotAuthorizedException') {
+        errorMessage = 'Session expired. Please sign in again.';
+      } else if (err.name === 'LimitExceededException') {
+        errorMessage = 'Too many attempts. Please try again later.';
+      } else if (err.message) {
+        errorMessage = err.message;
+      }
+
+      setError(errorMessage);
+      setLoading(false);
+      throw new Error(errorMessage);
+    }
+  };
+
   const value = {
     user,
     loading,
@@ -218,6 +302,7 @@ export const AuthProvider = ({ children }) => {
     resendConfirmationCode: handleResendConfirmationCode,
     forgotPassword: handleForgotPassword,
     confirmForgotPassword: handleConfirmForgotPassword,
+    confirmNewPassword: handleConfirmNewPassword,
     refreshAuth: checkAuthState,
   };
 
