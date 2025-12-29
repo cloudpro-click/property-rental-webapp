@@ -313,9 +313,9 @@ const Buildings = () => {
                       <button
                         type="button"
                         onClick={fillDemoData}
-                        className="px-3 py-1.5 bg-accent-100 text-accent-700 rounded-lg hover:bg-accent-200 font-medium transition-colors text-xs sm:text-sm flex items-center"
+                        className="px-3 py-1.5 text-xs sm:text-sm font-medium text-accent-700 bg-accent-50 hover:bg-accent-100 rounded-lg transition-colors flex items-center gap-1.5"
                       >
-                        <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
                         </svg>
                         <span className="hidden sm:inline">Fill Demo Data</span>
