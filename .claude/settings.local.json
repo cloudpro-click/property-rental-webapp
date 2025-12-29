@@ -25,7 +25,18 @@
       "Bash(git -C \"d:\\\\Projects\\\\Property Rental\\\\property-rental-webapp\" log --oneline -10)",
       "Bash(git rm:*)",
       "Bash(git checkout:*)",
-      "Bash(git clean:*)"
+      "Bash(git clean:*)",
+      "Bash(npx update-browserslist-db@latest)",
+      "Bash(yarn build)",
+      "Bash(node scripts/fetch-schema.js:*)",
+      "Bash(curl:*)",
+      "Bash(yarn add:*)",
+      "Bash(tasklist:*)",
+      "Bash(findstr:*)",
+      "Bash(taskkill:*)",
+      "Bash(yarn dev)",
+      "Bash(yarn install)",
+      "Bash(del yarn.lock)"
     ]
   }
 }
