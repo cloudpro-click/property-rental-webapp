@@ -8,6 +8,7 @@ const SearchableSelect = ({
   disabled = false,
   displayKey = null, // For objects: which key to display
   valueKey = null,   // For objects: which key to use as value
+  selectedLabel = null, // Optional: display label when options haven't loaded yet
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -32,7 +33,13 @@ const SearchableSelect = ({
   const getSelectedDisplay = () => {
     if (!value) return '';
     const selected = options.find(opt => getOptionValue(opt) === value);
-    return selected ? getDisplayText(selected) : value;
+    if (selected) return getDisplayText(selected);
+    // Use selectedLabel if provided and options haven't loaded yet
+    if (selectedLabel) return selectedLabel;
+    // If options are empty (still loading), show loading state
+    if (options.length === 0) return null;
+    // Options loaded but value not found - show the value
+    return value;
   };
 
   // Filter options based on search term
@@ -101,8 +108,8 @@ const SearchableSelect = ({
             onClick={(e) => e.stopPropagation()}
           />
         ) : (
-          <span className={`flex-1 text-sm ${value ? 'text-neutral-900' : 'text-neutral-500'}`}>
-            {value ? getSelectedDisplay() : placeholder}
+          <span className={`flex-1 text-sm ${value && getSelectedDisplay() ? 'text-neutral-900' : 'text-neutral-500'}`}>
+            {value && getSelectedDisplay() ? getSelectedDisplay() : (value ? 'Loading...' : placeholder)}
           </span>
         )}
         <svg
@@ -117,7 +124,7 @@ const SearchableSelect = ({
 
       {/* Dropdown */}
       {isOpen && !disabled && (
-        <div className="absolute z-50 w-full mt-1 bg-white border border-neutral-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+        <div className="absolute z-[100] w-full mt-1 bg-white border border-neutral-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
           {filteredOptions.length > 0 ? (
             filteredOptions.map((option, index) => {
               const optionValue = getOptionValue(option);

@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { useQuery } from '@apollo/client/react';
 import { GET_ALL_REGIONS, GET_PROVINCES_BY_REGION, GET_CITIES_BY_PROVINCE } from '../lib/graphql-queries';
 import SearchableSelect from './SearchableSelect';
@@ -18,21 +18,38 @@ const BuildingWizard = ({
   handleSubmit,
   closeModal,
   isEditing = false,
-  fillDemoData
+  fillDemoData,
+  initialBuilding = null, // Original building data for edit mode (contains region/province/city names)
 }) => {
   const totalSteps = 4;
 
   // Fetch all regions
-  const { data: regionsData, loading: regionsLoading } = useQuery(GET_ALL_REGIONS);
+  const { data: regionsData, loading: regionsLoading, error: regionsError } = useQuery(GET_ALL_REGIONS);
+
+  // Get initial labels from initialBuilding if available
+  const getInitialRegionName = () => {
+    if (initialBuilding?.region?.name) return initialBuilding.region.name;
+    return null;
+  };
+
+  const getInitialProvinceName = () => {
+    if (initialBuilding?.province?.name) return initialBuilding.province.name;
+    return null;
+  };
+
+  const getInitialCityName = () => {
+    if (initialBuilding?.city?.name) return initialBuilding.city.name;
+    return null;
+  };
 
   // Fetch provinces when region is selected
-  const { data: provincesData, loading: provincesLoading } = useQuery(GET_PROVINCES_BY_REGION, {
+  const { data: provincesData, loading: provincesLoading, error: provincesError } = useQuery(GET_PROVINCES_BY_REGION, {
     variables: { region_psgc_code: formData.region },
     skip: !formData.region
   });
 
   // Fetch cities when province is selected
-  const { data: citiesData, loading: citiesLoading } = useQuery(GET_CITIES_BY_PROVINCE, {
+  const { data: citiesData, loading: citiesLoading, error: citiesError } = useQuery(GET_CITIES_BY_PROVINCE, {
     variables: { province_psgc_code: formData.province },
     skip: !formData.province
   });
@@ -42,20 +59,68 @@ const BuildingWizard = ({
   const provinces = provincesData?.getProvincesByRegion?.provinces || [];
   const cities = citiesData?.getCitiesByProvince?.cities || [];
 
-  // Reset province and city when region changes
+  // Get current selected names from loaded options or fall back to initial building data
+  const getRegionLabel = () => {
+    const found = regions.find(r => r.psgc_code === formData.region);
+    if (found) return found.name;
+    return getInitialRegionName();
+  };
+
+  const getProvinceLabel = () => {
+    const found = provinces.find(p => p.psgc_code === formData.province);
+    if (found) return found.name;
+    return getInitialProvinceName();
+  };
+
+  const getCityLabel = () => {
+    const found = cities.find(c => c.psgc_code === formData.city);
+    if (found) return found.name;
+    return getInitialCityName();
+  };
+
+  // Track previous values to avoid resetting on initial mount
+  // Use null initially to detect first render vs user changes
+  const prevRegionRef = useRef(null);
+  const prevProvinceRef = useRef(null);
+  const isInitialMount = useRef(true);
+
+  // Initialize refs after first render to capture initial values (for edit mode)
   useEffect(() => {
-    if (formData.region) {
-      // Reset province and city when region changes
+    if (isInitialMount.current) {
+      // Set initial values after mount so we can detect user changes
+      prevRegionRef.current = formData.region;
+      prevProvinceRef.current = formData.province;
+      isInitialMount.current = false;
+    }
+  }, [formData.region, formData.province]);
+
+  // Reset province and city when region changes (but not on initial values)
+  useEffect(() => {
+    // Skip if this is the initial mount or if refs haven't been initialized
+    if (isInitialMount.current || prevRegionRef.current === null) {
+      return;
+    }
+
+    // Only reset if region actually changed from a previous non-empty value
+    if (prevRegionRef.current !== formData.region && prevRegionRef.current !== '') {
       setFormData(prev => ({ ...prev, province: '', city: '' }));
     }
-  }, [formData.region]);
+    prevRegionRef.current = formData.region;
+  }, [formData.region, setFormData]);
 
-  // Reset city when province changes
+  // Reset city when province changes (but not on initial values)
   useEffect(() => {
-    if (formData.province) {
+    // Skip if this is the initial mount or if refs haven't been initialized
+    if (isInitialMount.current || prevProvinceRef.current === null) {
+      return;
+    }
+
+    // Only reset if province actually changed from a previous non-empty value
+    if (prevProvinceRef.current !== formData.province && prevProvinceRef.current !== '') {
       setFormData(prev => ({ ...prev, city: '' }));
     }
-  }, [formData.province]);
+    prevProvinceRef.current = formData.province;
+  }, [formData.province, setFormData]);
 
   return (
     <>
@@ -161,14 +226,27 @@ const BuildingWizard = ({
             <label className="block text-sm font-medium text-neutral-700 mb-1.5">
               Region <span className="text-secondary-500">*</span>
             </label>
-            <SearchableSelect
-              value={formData.region || ''}
-              onChange={(value) => setFormData({ ...formData, region: value, province: '', city: '' })}
-              options={regions}
-              placeholder="Select Region"
-              displayKey="name"
-              valueKey="psgc_code"
-            />
+            {regionsLoading ? (
+              <div className="input-field flex items-center text-neutral-500 text-sm">
+                <svg className="animate-spin h-4 w-4 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                Loading regions...
+              </div>
+            ) : regionsError ? (
+              <div className="input-field text-red-500 text-sm">Error loading regions: {regionsError.message}</div>
+            ) : (
+              <SearchableSelect
+                value={formData.region || ''}
+                onChange={(value) => setFormData({ ...formData, region: value })}
+                options={regions}
+                placeholder={regions.length === 0 ? "No regions available" : "Select Region"}
+                displayKey="name"
+                valueKey="psgc_code"
+                selectedLabel={getRegionLabel()}
+              />
+            )}
           </div>
 
           {/* Province and City */}
@@ -177,29 +255,51 @@ const BuildingWizard = ({
               <label className="block text-sm font-medium text-neutral-700 mb-1.5">
                 Province <span className="text-secondary-500">*</span>
               </label>
-              <SearchableSelect
-                value={formData.province || ''}
-                onChange={(value) => setFormData({ ...formData, province: value, city: '' })}
-                options={provinces}
-                placeholder="Select Province"
-                displayKey="name"
-                valueKey="psgc_code"
-                disabled={!formData.region}
-              />
+              {provincesLoading ? (
+                <div className="input-field flex items-center text-neutral-500 text-sm">
+                  <svg className="animate-spin h-4 w-4 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  Loading...
+                </div>
+              ) : (
+                <SearchableSelect
+                  value={formData.province || ''}
+                  onChange={(value) => setFormData({ ...formData, province: value })}
+                  options={provinces}
+                  placeholder="Select Province"
+                  displayKey="name"
+                  valueKey="psgc_code"
+                  disabled={!formData.region}
+                  selectedLabel={getProvinceLabel()}
+                />
+              )}
             </div>
             <div>
               <label className="block text-sm font-medium text-neutral-700 mb-1.5">
                 City/Municipality <span className="text-secondary-500">*</span>
               </label>
-              <SearchableSelect
-                value={formData.city || ''}
-                onChange={(value) => setFormData({ ...formData, city: value })}
-                options={cities}
-                placeholder="Select City"
-                displayKey="name"
-                valueKey="psgc_code"
-                disabled={!formData.province}
-              />
+              {citiesLoading ? (
+                <div className="input-field flex items-center text-neutral-500 text-sm">
+                  <svg className="animate-spin h-4 w-4 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  Loading...
+                </div>
+              ) : (
+                <SearchableSelect
+                  value={formData.city || ''}
+                  onChange={(value) => setFormData({ ...formData, city: value })}
+                  options={cities}
+                  placeholder="Select City"
+                  displayKey="name"
+                  valueKey="psgc_code"
+                  disabled={!formData.province}
+                  selectedLabel={getCityLabel()}
+                />
+              )}
             </div>
           </div>
 

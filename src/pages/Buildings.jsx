@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from 'react';
+import { useQuery, useMutation } from '@apollo/client/react';
+import toast from 'react-hot-toast';
 import DashboardLayout from '../components/DashboardLayout';
 import BuildingWizard from '../components/BuildingWizard';
+import { GET_ALL_PROPERTIES, CREATE_PROPERTY, UPDATE_PROPERTY } from '../lib/graphql-queries';
 
 const Buildings = () => {
   const [showAddModal, setShowAddModal] = useState(false);
@@ -8,6 +11,50 @@ const Buildings = () => {
   const [currentStep, setCurrentStep] = useState(1);
   const [photos, setPhotos] = useState([]);
   const [locationLoading, setLocationLoading] = useState(false);
+
+  // GraphQL Query - Fetch all properties
+  const { data, loading: queryLoading, error: queryError, refetch } = useQuery(GET_ALL_PROPERTIES, {
+    fetchPolicy: 'cache-and-network',
+    onError: (error) => {
+      console.error('Error fetching properties:', error);
+    }
+  });
+
+  // GraphQL Mutations
+  const [createProperty, { loading: createLoading }] = useMutation(CREATE_PROPERTY, {
+    onCompleted: (data) => {
+      if (data.createProperty.success) {
+        toast.success('Building created successfully!');
+        refetch();
+        closeModal();
+      } else {
+        toast.error(data.createProperty.message || 'Failed to create building');
+      }
+    },
+    onError: (error) => {
+      console.error('Create property error:', error);
+      toast.error(error.message || 'Failed to create building');
+    }
+  });
+
+  const [updateProperty, { loading: updateLoading }] = useMutation(UPDATE_PROPERTY, {
+    onCompleted: (data) => {
+      if (data.updateProperty.success) {
+        toast.success('Building updated successfully!');
+        refetch();
+        closeModal();
+      } else {
+        toast.error(data.updateProperty.message || 'Failed to update building');
+      }
+    },
+    onError: (error) => {
+      console.error('Update property error:', error);
+      toast.error(error.message || 'Failed to update building');
+    }
+  });
+
+  // Get buildings from GraphQL response or use empty array
+  const buildings = data?.getAllProperties?.properties || [];
 
   // Lock body scroll when modal is open
   useEffect(() => {
@@ -20,12 +67,6 @@ const Buildings = () => {
       document.body.style.overflow = 'unset';
     };
   }, [showAddModal]);
-
-  const [buildings, setBuildings] = useState([
-    { id: 1, name: 'Building A', address: '123 Rizal St, Manila', totalRooms: 20, occupiedRooms: 16, monthlyRevenue: '₱136,000' },
-    { id: 2, name: 'Building B', address: '456 Bonifacio Ave, Quezon City', totalRooms: 15, occupiedRooms: 12, monthlyRevenue: '₱90,000' },
-    { id: 3, name: 'Building C', address: '789 Aguinaldo Rd, Makati', totalRooms: 13, occupiedRooms: 10, monthlyRevenue: '₱85,000' },
-  ]);
 
   const [formData, setFormData] = useState({
     name: '',
@@ -92,54 +133,48 @@ const Buildings = () => {
     setCurrentStep(currentStep - 1);
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (editingBuilding) {
-      // Update existing building
-      const updatedBuilding = {
-        ...editingBuilding,
-        ...formData,
-        totalRooms: parseInt(formData.totalRooms),
-        floors: formData.floors ? parseInt(formData.floors) : null,
-        photos: photos
-      };
-      setBuildings(buildings.map(b => b.id === editingBuilding.id ? updatedBuilding : b));
-    } else {
-      // Add new building
-      const newBuilding = {
-        id: buildings.length + 1,
-        ...formData,
-        occupiedRooms: 0,
-        monthlyRevenue: '₱0',
-        totalRooms: parseInt(formData.totalRooms),
-        floors: formData.floors ? parseInt(formData.floors) : null,
-        photos: photos
-      };
-      setBuildings([...buildings, newBuilding]);
-    }
+    // Prepare input for GraphQL mutation
+    const propertyInput = {
+      name: formData.name,
+      address: formData.address,
+      region_psgc_code: formData.region,
+      province_psgc_code: formData.province,
+      city_psgc_code: formData.city,
+      landmark: formData.landmark || null,
+      totalRooms: parseInt(formData.totalRooms),
+      floors: formData.floors ? parseInt(formData.floors) : null,
+      description: formData.description || null,
+      contactPerson: formData.contactPerson || null,
+      contactPhone: formData.contactPhone || null,
+      latitude: formData.latitude ? parseFloat(formData.latitude) : null,
+      longitude: formData.longitude ? parseFloat(formData.longitude) : null,
+      photos: photos.map(p => p.name || p.file?.name || '') // Send photo names/URLs
+    };
 
-    // Reset form
-    setFormData({
-      name: '',
-      address: '',
-      region: '',
-      city: '',
-      province: '',
-      zipCode: '',
-      totalRooms: '',
-      floors: '',
-      description: '',
-      contactPerson: '',
-      contactPhone: '',
-      latitude: '',
-      longitude: '',
-      photos: []
-    });
-    setPhotos([]);
-    setCurrentStep(1);
-    setShowAddModal(false);
-    setEditingBuilding(null);
+    try {
+      if (editingBuilding) {
+        // Update existing building
+        await updateProperty({
+          variables: {
+            building_id: editingBuilding.building_id,
+            input: propertyInput
+          }
+        });
+      } else {
+        // Create new building
+        await createProperty({
+          variables: {
+            input: propertyInput
+          }
+        });
+      }
+    } catch (error) {
+      // Error handling is done in mutation onError callback
+      console.error('Submit error:', error);
+    }
   };
 
   const closeModal = () => {
@@ -167,21 +202,25 @@ const Buildings = () => {
   };
 
   const handleEditBuilding = (building) => {
+    console.log('Editing building:', building);
+    console.log('Region:', building.region);
+    console.log('Province:', building.province);
+    console.log('City:', building.city);
     setEditingBuilding(building);
     setFormData({
       name: building.name || '',
       address: building.address || '',
-      region: building.region || '',
-      city: building.city || '',
-      province: building.province || '',
+      region: building.region?.psgc_code || '',
+      city: building.city?.psgc_code || '',
+      province: building.province?.psgc_code || '',
       landmark: building.landmark || '',
       totalRooms: building.totalRooms?.toString() || '',
       floors: building.floors?.toString() || '',
       description: building.description || '',
       contactPerson: building.contactPerson || '',
       contactPhone: building.contactPhone || '',
-      latitude: building.latitude || '',
-      longitude: building.longitude || '',
+      latitude: building.latitude?.toString() || '',
+      longitude: building.longitude?.toString() || '',
       photos: building.photos || []
     });
     setPhotos(building.photos || []);
@@ -208,6 +247,8 @@ const Buildings = () => {
     });
   };
 
+  const isLoading = createLoading || updateLoading;
+
   return (
     <DashboardLayout>
       {/* Header */}
@@ -228,10 +269,50 @@ const Buildings = () => {
         </button>
       </div>
 
+      {/* Loading State */}
+      {queryLoading && buildings.length === 0 && (
+        <div className="flex items-center justify-center py-12">
+          <svg className="animate-spin h-8 w-8 text-primary-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+          </svg>
+          <span className="ml-3 text-neutral-600">Loading buildings...</span>
+        </div>
+      )}
+
+      {/* Error State */}
+      {queryError && (
+        <div className="text-center py-12">
+          <svg className="w-16 h-16 text-red-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          <h3 className="text-lg font-semibold text-neutral-900 mb-2">Failed to load buildings</h3>
+          <p className="text-neutral-600 mb-4">{queryError.message}</p>
+          <button onClick={() => refetch()} className="btn-primary">
+            Try Again
+          </button>
+        </div>
+      )}
+
+      {/* Empty State */}
+      {!queryLoading && !queryError && buildings.length === 0 && (
+        <div className="text-center py-12">
+          <svg className="w-16 h-16 text-neutral-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+          </svg>
+          <h3 className="text-lg font-semibold text-neutral-900 mb-2">No buildings yet</h3>
+          <p className="text-neutral-600 mb-4">Get started by adding your first building</p>
+          <button onClick={() => setShowAddModal(true)} className="btn-primary">
+            Add Building
+          </button>
+        </div>
+      )}
+
       {/* Buildings Grid */}
+      {buildings.length > 0 && (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
         {buildings.map((building) => (
-          <div key={building.id} className="card p-4 sm:p-5 hover:shadow-lg transition-shadow">
+          <div key={building.building_id} className="card p-4 sm:p-5 hover:shadow-lg transition-shadow">
             <div className="flex items-start justify-between mb-3">
               <div className="w-10 h-10 sm:w-12 sm:h-12 bg-primary-100 rounded-lg flex items-center justify-center">
                 <svg className="w-5 h-5 sm:w-6 sm:h-6 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -246,21 +327,23 @@ const Buildings = () => {
             </div>
 
             <h3 className="text-base sm:text-lg font-semibold text-neutral-900 mb-1.5">{building.name}</h3>
-            <p className="text-xs sm:text-sm text-neutral-600 mb-3 line-clamp-2">{building.address}</p>
+            <p className="text-xs sm:text-sm text-neutral-600 mb-3 line-clamp-2">
+              {building.address}{building.city?.name ? `, ${building.city.name}` : ''}
+            </p>
 
             <div className="space-y-2 mb-3">
               <div className="flex justify-between text-xs sm:text-sm">
                 <span className="text-neutral-600">Total Rooms</span>
-                <span className="font-semibold text-neutral-900">{building.totalRooms}</span>
+                <span className="font-semibold text-neutral-900">{building.totalRooms || 0}</span>
               </div>
               <div className="flex justify-between text-xs sm:text-sm">
                 <span className="text-neutral-600">Occupied</span>
-                <span className="font-semibold text-primary-600">{building.occupiedRooms}</span>
+                <span className="font-semibold text-primary-600">{building.occupiedRooms || 0}</span>
               </div>
               <div className="flex justify-between text-xs sm:text-sm">
                 <span className="text-neutral-600">Vacancy Rate</span>
                 <span className="font-semibold text-neutral-900">
-                  {Math.round((building.totalRooms - building.occupiedRooms) / building.totalRooms * 100)}%
+                  {building.totalRooms ? Math.round(((building.totalRooms - (building.occupiedRooms || 0)) / building.totalRooms) * 100) : 0}%
                 </span>
               </div>
             </div>
@@ -268,7 +351,7 @@ const Buildings = () => {
             <div className="pt-3 border-t border-neutral-200">
               <div className="flex justify-between items-center mb-3">
                 <span className="text-xs sm:text-sm text-neutral-600">Monthly Revenue</span>
-                <span className="text-base sm:text-lg font-bold text-secondary-600">{building.monthlyRevenue}</span>
+                <span className="text-base sm:text-lg font-bold text-secondary-600">{building.monthlyRevenue || '₱0'}</span>
               </div>
             </div>
 
@@ -286,6 +369,8 @@ const Buildings = () => {
           </div>
         ))}
       </div>
+      )}
+
 
       {/* Add Building Wizard Modal */}
       {showAddModal && (
@@ -394,6 +479,7 @@ const Buildings = () => {
               <form onSubmit={handleSubmit} noValidate>
                 <div className="p-4 sm:p-5 min-h-[320px] sm:min-h-[380px]">
                   <BuildingWizard
+                    key={editingBuilding?.building_id || 'new'}
                     currentStep={currentStep}
                     formData={formData}
                     setFormData={setFormData}
@@ -408,6 +494,7 @@ const Buildings = () => {
                     closeModal={closeModal}
                     isEditing={!!editingBuilding}
                     fillDemoData={fillDemoData}
+                    initialBuilding={editingBuilding}
                   />
                 </div>
               </form>
