@@ -253,3 +253,26 @@ export const UPDATE_PROPERTY = gql`
   }
 `;
 
+// ============================================================================
+// Amenity Queries
+// ============================================================================
+
+export const GET_ALL_AMENITIES = gql`
+  query GetAllAmenities {
+    getAllAmenities {
+      code
+      success
+      message
+      amenities {
+        pk
+        sk
+        code
+        label
+        category
+        sortOrder
+        isActive
+      }
+    }
+  }
+`;
+

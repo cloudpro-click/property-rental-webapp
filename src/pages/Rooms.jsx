@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
+import { useQuery } from '@apollo/client/react';
 import DashboardLayout from '../components/DashboardLayout';
 import RoomWizard from '../components/RoomWizard';
 import ConfirmDialog from '../components/ConfirmDialog';
+import { GET_ALL_AMENITIES, GET_ALL_PROPERTIES } from '../lib/graphql-queries';
 
 const Rooms = () => {
   const [showAddModal, setShowAddModal] = useState(false);
@@ -14,6 +16,28 @@ const Rooms = () => {
   const [selectedRoom, setSelectedRoom] = useState(null);
   const [showRemoveTenantConfirm, setShowRemoveTenantConfirm] = useState(false);
   const [openMenuId, setOpenMenuId] = useState(null);
+
+  // GraphQL Query - Fetch all amenities
+  const { data: amenitiesData, loading: amenitiesLoading } = useQuery(GET_ALL_AMENITIES, {
+    fetchPolicy: 'cache-and-network',
+    onError: (error) => {
+      console.error('Error fetching amenities:', error);
+    }
+  });
+
+  // GraphQL Query - Fetch all buildings/properties
+  const { data: buildingsData, loading: buildingsLoading } = useQuery(GET_ALL_PROPERTIES, {
+    fetchPolicy: 'cache-and-network',
+    onError: (error) => {
+      console.error('Error fetching buildings:', error);
+    }
+  });
+
+  // Get amenities from GraphQL response
+  const amenities = amenitiesData?.getAllAmenities?.amenities || [];
+
+  // Get buildings from GraphQL response
+  const buildings = buildingsData?.getAllProperties?.properties || [];
 
   // Lock body scroll when modal is open
   useEffect(() => {
@@ -37,10 +61,12 @@ const Rooms = () => {
   ]);
 
   const [formData, setFormData] = useState({
-    building: 'Building A',
+    building: '',
+    buildingId: '',
     roomNumber: '',
     floor: '',
     rent: '',
+    hasSeparateMeter: undefined,
     electricMeter: '',
     capacity: '',
     size: '',
@@ -48,11 +74,10 @@ const Rooms = () => {
     amenities: ''
   });
 
-  const buildings = ['Building A', 'Building B', 'Building C'];
-
+  // Filter rooms by selected building (using building_id for API data)
   const filteredRooms = selectedBuilding === 'all'
     ? rooms
-    : rooms.filter(room => room.building === selectedBuilding);
+    : rooms.filter(room => room.buildingId === selectedBuilding || room.building === selectedBuilding);
 
   const handleNext = () => {
     setCurrentStep(currentStep + 1);
@@ -86,10 +111,12 @@ const Rooms = () => {
     }
 
     setFormData({
-      building: 'Building A',
+      building: '',
+      buildingId: '',
       roomNumber: '',
       floor: '',
       rent: '',
+      hasSeparateMeter: undefined,
       electricMeter: '',
       capacity: '',
       size: '',
@@ -106,10 +133,12 @@ const Rooms = () => {
     setCurrentStep(1);
     setEditingRoom(null);
     setFormData({
-      building: 'Building A',
+      building: '',
+      buildingId: '',
       roomNumber: '',
       floor: '',
       rent: '',
+      hasSeparateMeter: undefined,
       electricMeter: '',
       capacity: '',
       size: '',
@@ -118,13 +147,34 @@ const Rooms = () => {
     });
   };
 
+  // Fill form with demo data
+  const fillDemoData = () => {
+    // Use first building from API if available
+    const firstBuilding = buildings.length > 0 ? buildings[0] : null;
+    setFormData({
+      building: firstBuilding?.name || '',
+      buildingId: firstBuilding?.building_id || '',
+      roomNumber: '301',
+      floor: '3',
+      rent: '9500',
+      hasSeparateMeter: true,
+      electricMeter: 'EM-301-2024',
+      capacity: '2',
+      size: '28',
+      description: 'Corner unit with excellent natural lighting and ventilation. Newly renovated with modern fixtures.',
+      amenities: 'AC, WIFI, BATH_PRIVATE, WATER_HEATER'
+    });
+  };
+
   const handleEditRoom = (room) => {
     setEditingRoom(room);
     setFormData({
-      building: room.building || 'Building A',
+      building: room.building || '',
+      buildingId: room.buildingId || '',
       roomNumber: room.roomNumber || '',
       floor: room.floor || '',
       rent: room.rent ? room.rent.replace('₱', '').replace(',', '') : '',
+      hasSeparateMeter: room.electricMeter ? true : false,
       electricMeter: room.electricMeter || '',
       capacity: room.capacity || '',
       size: room.size || '',
@@ -200,19 +250,25 @@ const Rooms = () => {
           >
             All Buildings
           </button>
-          {buildings.map((building) => (
-            <button
-              key={building}
-              onClick={() => setSelectedBuilding(building)}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                selectedBuilding === building
-                  ? 'bg-primary-600 text-white'
-                  : 'bg-neutral-100 text-neutral-700 hover:bg-neutral-200'
-              }`}
-            >
-              {building}
-            </button>
-          ))}
+          {buildingsLoading ? (
+            <span className="px-4 py-2 text-sm text-neutral-500">Loading buildings...</span>
+          ) : buildings.length === 0 ? (
+            <span className="px-4 py-2 text-sm text-neutral-500">No buildings available</span>
+          ) : (
+            buildings.map((building) => (
+              <button
+                key={building.building_id}
+                onClick={() => setSelectedBuilding(building.building_id)}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  selectedBuilding === building.building_id
+                    ? 'bg-primary-600 text-white'
+                    : 'bg-neutral-100 text-neutral-700 hover:bg-neutral-200'
+                }`}
+              >
+                {building.name}
+              </button>
+            ))
+          )}
         </div>
       </div>
 
@@ -429,9 +485,24 @@ const Rooms = () => {
               {/* Header */}
               <div className="p-4 sm:p-5 border-b border-neutral-200">
                 <div className="flex items-center justify-between mb-2 sm:mb-3">
-                  <h3 className="text-lg sm:text-xl font-display font-bold text-neutral-900">
-                    {editingRoom ? 'Edit Room' : 'Add New Room'}
-                  </h3>
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-lg sm:text-xl font-display font-bold text-neutral-900">
+                      {editingRoom ? 'Edit Room' : 'Add New Room'}
+                    </h3>
+                    {!editingRoom && (
+                      <button
+                        type="button"
+                        onClick={fillDemoData}
+                        className="px-3 py-1.5 text-xs sm:text-sm font-medium text-accent-700 bg-accent-50 hover:bg-accent-100 rounded-lg transition-colors flex items-center gap-1.5"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                        </svg>
+                        <span className="hidden sm:inline">Fill Demo Data</span>
+                        <span className="sm:hidden">Demo</span>
+                      </button>
+                    )}
+                  </div>
                   <button
                     onClick={closeModal}
                     className="text-neutral-400 hover:text-neutral-600 p-1"
@@ -444,35 +515,56 @@ const Rooms = () => {
 
                 {/* Step Indicator */}
                 <div className="flex items-center justify-between">
-                  {[1, 2, 3].map((step) => (
-                    <React.Fragment key={step}>
-                      <div className="flex flex-col items-center">
-                        <div className={`w-7 h-7 sm:w-9 sm:h-9 rounded-full flex items-center justify-center text-xs sm:text-sm font-semibold transition-all ${
-                          step < currentStep
-                            ? 'bg-green-500 text-white'
-                            : step === currentStep
-                            ? 'bg-primary-600 text-white'
-                            : 'bg-neutral-200 text-neutral-500'
-                        }`}>
-                          {step < currentStep ? (
-                            <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                            </svg>
-                          ) : (
-                            step
-                          )}
+                  {[1, 2, 3].map((step) => {
+                    const getStepIcon = (stepNum) => {
+                      if (stepNum === 1) {
+                        // Basic Info - Door/Room icon
+                        return (
+                          <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+                          </svg>
+                        );
+                      } else if (stepNum === 2) {
+                        // Rent - Currency/Money icon
+                        return (
+                          <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                        );
+                      } else {
+                        // Details - List/Checklist icon
+                        return (
+                          <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+                          </svg>
+                        );
+                      }
+                    };
+
+                    return (
+                      <React.Fragment key={step}>
+                        <div className="flex flex-col items-center">
+                          <div className={`w-7 h-7 sm:w-9 sm:h-9 rounded-full flex items-center justify-center text-xs sm:text-sm font-semibold transition-all ${
+                            step < currentStep
+                              ? 'bg-green-500 text-white'
+                              : step === currentStep
+                              ? 'bg-primary-600 text-white'
+                              : 'bg-neutral-200 text-neutral-500'
+                          }`}>
+                            {getStepIcon(step)}
+                          </div>
+                          <span className="text-[10px] sm:text-xs mt-1 sm:mt-1.5 text-neutral-600 text-center">
+                            {step === 1 ? 'Basic' : step === 2 ? 'Rent' : 'Details'}
+                          </span>
                         </div>
-                        <span className="text-[10px] sm:text-xs mt-1 sm:mt-1.5 text-neutral-600 text-center">
-                          {step === 1 ? 'Basic' : step === 2 ? 'Rent' : 'Details'}
-                        </span>
-                      </div>
-                      {step < 3 && (
-                        <div className={`flex-1 h-0.5 sm:h-1 mx-1 sm:mx-2 rounded ${
-                          step < currentStep ? 'bg-green-500' : 'bg-neutral-200'
-                        }`}></div>
-                      )}
-                    </React.Fragment>
-                  ))}
+                        {step < 3 && (
+                          <div className={`flex-1 h-0.5 sm:h-1 mx-1 sm:mx-2 rounded ${
+                            step < currentStep ? 'bg-green-500' : 'bg-neutral-200'
+                          }`}></div>
+                        )}
+                      </React.Fragment>
+                    );
+                  })}
                 </div>
               </div>
 
@@ -484,6 +576,9 @@ const Rooms = () => {
                     formData={formData}
                     setFormData={setFormData}
                     buildings={buildings}
+                    buildingsLoading={buildingsLoading}
+                    amenities={amenities}
+                    amenitiesLoading={amenitiesLoading}
                     handleNext={handleNext}
                     handleBack={handleBack}
                     handleSubmit={handleSubmit}

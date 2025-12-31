@@ -1,10 +1,14 @@
 import React from 'react';
+import SearchableSelect from './SearchableSelect';
 
 const RoomWizard = ({
   currentStep,
   formData,
   setFormData,
-  buildings,
+  buildings = [],
+  buildingsLoading = false,
+  amenities = [],
+  amenitiesLoading = false,
   handleNext,
   handleBack,
   handleSubmit,
@@ -25,16 +29,34 @@ const RoomWizard = ({
             <label className="block text-sm font-medium text-neutral-700 mb-1.5">
               Building <span className="text-secondary-500">*</span>
             </label>
-            <select
-              required
-              value={formData.building}
-              onChange={(e) => setFormData({ ...formData, building: e.target.value })}
-              className="input-field"
-            >
-              {buildings.map((building) => (
-                <option key={building} value={building}>{building}</option>
-              ))}
-            </select>
+            {buildingsLoading ? (
+              <div className="flex items-center py-2">
+                <svg className="animate-spin h-5 w-5 text-primary-600 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                <span className="text-sm text-neutral-600">Loading buildings...</span>
+              </div>
+            ) : buildings.length === 0 ? (
+              <p className="text-sm text-neutral-500 py-2">No buildings available. Please add a building first.</p>
+            ) : (
+              <SearchableSelect
+                value={formData.buildingId || ''}
+                onChange={(value) => {
+                  const selectedBuilding = buildings.find(b => b.building_id === value);
+                  setFormData({
+                    ...formData,
+                    buildingId: value,
+                    building: selectedBuilding?.name || ''
+                  });
+                }}
+                options={buildings}
+                displayKey="name"
+                valueKey="building_id"
+                placeholder="Select building"
+                selectedLabel={formData.building}
+              />
+            )}
           </div>
 
           {/* Room Number */}
@@ -67,20 +89,51 @@ const RoomWizard = ({
             />
           </div>
 
-          {/* Electric Meter Number */}
+          {/* Has Separate Electric Meter */}
           <div>
-            <label className="block text-sm font-medium text-neutral-700 mb-1.5">
-              Electric Meter Number <span className="text-secondary-500">*</span>
-            </label>
-            <input
-              type="text"
-              required
-              value={formData.electricMeter}
-              onChange={(e) => setFormData({ ...formData, electricMeter: e.target.value })}
-              className="input-field"
-              placeholder="EM-007-2024"
-            />
+            <span className="block text-sm font-medium text-neutral-700 mb-2">
+              Has Separate Electric Meter? <span className="text-secondary-500">*</span>
+            </span>
+            <div className="flex gap-4">
+              <label className="flex items-center cursor-pointer">
+                <input
+                  type="radio"
+                  name="hasSeparateMeter"
+                  checked={formData.hasSeparateMeter === true}
+                  onChange={() => setFormData({ ...formData, hasSeparateMeter: true })}
+                  className="w-4 h-4 text-primary-600 border-neutral-300 focus:ring-primary-500"
+                />
+                <span className="ml-2 text-sm text-neutral-700">Yes</span>
+              </label>
+              <label className="flex items-center cursor-pointer">
+                <input
+                  type="radio"
+                  name="hasSeparateMeter"
+                  checked={formData.hasSeparateMeter === false}
+                  onChange={() => setFormData({ ...formData, hasSeparateMeter: false, electricMeter: '' })}
+                  className="w-4 h-4 text-primary-600 border-neutral-300 focus:ring-primary-500"
+                />
+                <span className="ml-2 text-sm text-neutral-700">No</span>
+              </label>
+            </div>
           </div>
+
+          {/* Electric Meter Number - Only show if hasSeparateMeter is true */}
+          {formData.hasSeparateMeter && (
+            <div>
+              <label className="block text-sm font-medium text-neutral-700 mb-1.5">
+                Electric Meter Number <span className="text-secondary-500">*</span>
+              </label>
+              <input
+                type="text"
+                required
+                value={formData.electricMeter}
+                onChange={(e) => setFormData({ ...formData, electricMeter: e.target.value })}
+                className="input-field"
+                placeholder="EM-007-2024"
+              />
+            </div>
+          )}
         </div>
       )}
 
@@ -156,159 +209,40 @@ const RoomWizard = ({
             <label className="block text-sm font-medium text-neutral-500 mb-2">
               Amenities
             </label>
-            <div className="grid grid-cols-2 gap-3">
-              <label className="flex items-center space-x-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={formData.amenities?.includes('Air Conditioning')}
-                  onChange={(e) => {
-                    const amenitiesList = formData.amenities ? formData.amenities.split(', ') : [];
-                    if (e.target.checked) {
-                      amenitiesList.push('Air Conditioning');
-                    } else {
-                      const index = amenitiesList.indexOf('Air Conditioning');
-                      if (index > -1) amenitiesList.splice(index, 1);
-                    }
-                    setFormData({ ...formData, amenities: amenitiesList.join(', ') });
-                  }}
-                  className="w-4 h-4 rounded border-neutral-300 text-primary-600 focus:ring-primary-500"
-                />
-                <span className="text-sm text-neutral-700">Air Conditioning</span>
-              </label>
-
-              <label className="flex items-center space-x-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={formData.amenities?.includes('Wi-Fi')}
-                  onChange={(e) => {
-                    const amenitiesList = formData.amenities ? formData.amenities.split(', ') : [];
-                    if (e.target.checked) {
-                      amenitiesList.push('Wi-Fi');
-                    } else {
-                      const index = amenitiesList.indexOf('Wi-Fi');
-                      if (index > -1) amenitiesList.splice(index, 1);
-                    }
-                    setFormData({ ...formData, amenities: amenitiesList.join(', ') });
-                  }}
-                  className="w-4 h-4 rounded border-neutral-300 text-primary-600 focus:ring-primary-500"
-                />
-                <span className="text-sm text-neutral-700">Wi-Fi</span>
-              </label>
-
-              <label className="flex items-center space-x-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={formData.amenities?.includes('Kitchen')}
-                  onChange={(e) => {
-                    const amenitiesList = formData.amenities ? formData.amenities.split(', ') : [];
-                    if (e.target.checked) {
-                      amenitiesList.push('Kitchen');
-                    } else {
-                      const index = amenitiesList.indexOf('Kitchen');
-                      if (index > -1) amenitiesList.splice(index, 1);
-                    }
-                    setFormData({ ...formData, amenities: amenitiesList.join(', ') });
-                  }}
-                  className="w-4 h-4 rounded border-neutral-300 text-primary-600 focus:ring-primary-500"
-                />
-                <span className="text-sm text-neutral-700">Kitchen</span>
-              </label>
-
-              <label className="flex items-center space-x-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={formData.amenities?.includes('Private Bathroom')}
-                  onChange={(e) => {
-                    const amenitiesList = formData.amenities ? formData.amenities.split(', ') : [];
-                    if (e.target.checked) {
-                      amenitiesList.push('Private Bathroom');
-                    } else {
-                      const index = amenitiesList.indexOf('Private Bathroom');
-                      if (index > -1) amenitiesList.splice(index, 1);
-                    }
-                    setFormData({ ...formData, amenities: amenitiesList.join(', ') });
-                  }}
-                  className="w-4 h-4 rounded border-neutral-300 text-primary-600 focus:ring-primary-500"
-                />
-                <span className="text-sm text-neutral-700">Private Bathroom</span>
-              </label>
-
-              <label className="flex items-center space-x-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={formData.amenities?.includes('Water Heater')}
-                  onChange={(e) => {
-                    const amenitiesList = formData.amenities ? formData.amenities.split(', ') : [];
-                    if (e.target.checked) {
-                      amenitiesList.push('Water Heater');
-                    } else {
-                      const index = amenitiesList.indexOf('Water Heater');
-                      if (index > -1) amenitiesList.splice(index, 1);
-                    }
-                    setFormData({ ...formData, amenities: amenitiesList.join(', ') });
-                  }}
-                  className="w-4 h-4 rounded border-neutral-300 text-primary-600 focus:ring-primary-500"
-                />
-                <span className="text-sm text-neutral-700">Water Heater</span>
-              </label>
-
-              <label className="flex items-center space-x-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={formData.amenities?.includes('Balcony')}
-                  onChange={(e) => {
-                    const amenitiesList = formData.amenities ? formData.amenities.split(', ') : [];
-                    if (e.target.checked) {
-                      amenitiesList.push('Balcony');
-                    } else {
-                      const index = amenitiesList.indexOf('Balcony');
-                      if (index > -1) amenitiesList.splice(index, 1);
-                    }
-                    setFormData({ ...formData, amenities: amenitiesList.join(', ') });
-                  }}
-                  className="w-4 h-4 rounded border-neutral-300 text-primary-600 focus:ring-primary-500"
-                />
-                <span className="text-sm text-neutral-700">Balcony</span>
-              </label>
-
-              <label className="flex items-center space-x-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={formData.amenities?.includes('Furnished')}
-                  onChange={(e) => {
-                    const amenitiesList = formData.amenities ? formData.amenities.split(', ') : [];
-                    if (e.target.checked) {
-                      amenitiesList.push('Furnished');
-                    } else {
-                      const index = amenitiesList.indexOf('Furnished');
-                      if (index > -1) amenitiesList.splice(index, 1);
-                    }
-                    setFormData({ ...formData, amenities: amenitiesList.join(', ') });
-                  }}
-                  className="w-4 h-4 rounded border-neutral-300 text-primary-600 focus:ring-primary-500"
-                />
-                <span className="text-sm text-neutral-700">Furnished</span>
-              </label>
-
-              <label className="flex items-center space-x-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={formData.amenities?.includes('Parking')}
-                  onChange={(e) => {
-                    const amenitiesList = formData.amenities ? formData.amenities.split(', ') : [];
-                    if (e.target.checked) {
-                      amenitiesList.push('Parking');
-                    } else {
-                      const index = amenitiesList.indexOf('Parking');
-                      if (index > -1) amenitiesList.splice(index, 1);
-                    }
-                    setFormData({ ...formData, amenities: amenitiesList.join(', ') });
-                  }}
-                  className="w-4 h-4 rounded border-neutral-300 text-primary-600 focus:ring-primary-500"
-                />
-                <span className="text-sm text-neutral-700">Parking</span>
-              </label>
-            </div>
+            {amenitiesLoading ? (
+              <div className="flex items-center justify-center py-4">
+                <svg className="animate-spin h-5 w-5 text-primary-600 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                <span className="text-sm text-neutral-600">Loading amenities...</span>
+              </div>
+            ) : amenities.length === 0 ? (
+              <p className="text-sm text-neutral-500 py-2">No amenities available</p>
+            ) : (
+              <div className="grid grid-cols-2 gap-3">
+                {amenities.map((amenity) => (
+                  <label key={amenity.code} className="flex items-center space-x-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={formData.amenities?.includes(amenity.code)}
+                      onChange={(e) => {
+                        const amenitiesList = formData.amenities ? formData.amenities.split(',').map(a => a.trim()).filter(Boolean) : [];
+                        if (e.target.checked) {
+                          amenitiesList.push(amenity.code);
+                        } else {
+                          const index = amenitiesList.indexOf(amenity.code);
+                          if (index > -1) amenitiesList.splice(index, 1);
+                        }
+                        setFormData({ ...formData, amenities: amenitiesList.join(', ') });
+                      }}
+                      className="w-4 h-4 rounded border-neutral-300 text-primary-600 focus:ring-primary-500"
+                    />
+                    <span className="text-sm text-neutral-700">{amenity.label}</span>
+                  </label>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Description / Notes */}
@@ -349,7 +283,7 @@ const RoomWizard = ({
             }}
             className="btn-primary disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base"
             disabled={
-              (currentStep === 1 && (!formData.building || !formData.roomNumber || !formData.floor || !formData.electricMeter)) ||
+              (currentStep === 1 && (!formData.buildingId || !formData.roomNumber || !formData.floor || formData.hasSeparateMeter === undefined || (formData.hasSeparateMeter && !formData.electricMeter))) ||
               (currentStep === 2 && (!formData.rent || !formData.capacity))
             }
           >
