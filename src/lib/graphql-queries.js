@@ -362,6 +362,43 @@ export const GET_ROOM = gql`
   }
 `;
 
+export const GET_ROOMS_BY_BUILDING = gql`
+  query GetRoomsByBuilding($building_id: NonEmptyString!) {
+    getRoomsByBuilding(building_id: $building_id) {
+      code
+      success
+      message
+      rooms {
+        room_id
+        building_id
+        roomNumber
+        floor
+        hasSeparateMeter
+        electricMeter
+        rent
+        capacity
+        size
+        description
+        amenities
+        status
+        tenant {
+          tenant_id
+          name
+          email
+          phone
+          moveInDate
+        }
+        audit {
+          created_by
+          created_date
+          modified_by
+          modified_date
+        }
+      }
+    }
+  }
+`;
+
 // ============================================================================
 // Room/Unit Mutations
 // ============================================================================

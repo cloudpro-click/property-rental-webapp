@@ -98,6 +98,16 @@ const Rooms = () => {
   // Get buildings from GraphQL response
   const buildings = buildingsData?.getAllProperties?.properties || [];
 
+  // Hardcoded rooms data (will be replaced by API data)
+  const [rooms] = useState([
+    { id: 1, building: 'Building A', roomNumber: '101', floor: '1', rent: '₱8,500', status: 'occupied', tenant: 'Maria Santos', tenantEmail: 'maria.santos@email.com', tenantPhone: '+63 917 123 4567', moveInDate: '2024-01-15', electricMeter: 'EM-001-2024', capacity: '2', size: '25', amenities: 'Air Conditioning, Wi-Fi', description: 'Cozy room with good ventilation' },
+    { id: 2, building: 'Building A', roomNumber: '102', floor: '1', rent: '₱8,500', status: 'vacant', tenant: null, tenantEmail: null, tenantPhone: null, moveInDate: null, electricMeter: 'EM-002-2024', capacity: '2', size: '25', amenities: 'Air Conditioning, Wi-Fi', description: '' },
+    { id: 3, building: 'Building A', roomNumber: '201', floor: '2', rent: '₱9,000', status: 'occupied', tenant: 'Ana Cruz', tenantEmail: 'ana.cruz@email.com', tenantPhone: '+63 918 234 5678', moveInDate: '2024-02-01', electricMeter: 'EM-003-2024', capacity: '3', size: '30', amenities: 'Air Conditioning, Wi-Fi, Balcony', description: 'Spacious room with balcony' },
+    { id: 4, building: 'Building B', roomNumber: '101', floor: '1', rent: '₱7,500', status: 'occupied', tenant: 'Jose Reyes', tenantEmail: 'jose.reyes@email.com', tenantPhone: '+63 919 345 6789', moveInDate: '2023-12-10', electricMeter: 'EM-004-2024', capacity: '2', size: '22', amenities: 'Wi-Fi', description: '' },
+    { id: 5, building: 'Building B', roomNumber: '205', floor: '2', rent: '₱7,200', status: 'occupied', tenant: 'Linda Fernandez', tenantEmail: 'linda.fernandez@email.com', tenantPhone: '+63 920 456 7890', moveInDate: '2024-03-05', electricMeter: 'EM-005-2024', capacity: '1', size: '18', amenities: 'Wi-Fi, Kitchen', description: 'Studio type' },
+    { id: 6, building: 'Building C', roomNumber: '102', floor: '1', rent: '₱6,800', status: 'vacant', tenant: null, tenantEmail: null, tenantPhone: null, moveInDate: null, electricMeter: 'EM-006-2024', capacity: '2', size: '20', amenities: 'Wi-Fi', description: '' },
+  ]);
+
   // Get rooms from GraphQL response or use hardcoded data as fallback
   const apiRooms = roomsData?.getAllRooms?.rooms || [];
 
@@ -137,15 +147,6 @@ const Rooms = () => {
       document.body.style.overflow = 'unset';
     };
   }, [showAddModal]);
-
-  const [rooms, setRooms] = useState([
-    { id: 1, building: 'Building A', roomNumber: '101', floor: '1', rent: '₱8,500', status: 'occupied', tenant: 'Maria Santos', tenantEmail: 'maria.santos@email.com', tenantPhone: '+63 917 123 4567', moveInDate: '2024-01-15', electricMeter: 'EM-001-2024', capacity: '2', size: '25', amenities: 'Air Conditioning, Wi-Fi', description: 'Cozy room with good ventilation' },
-    { id: 2, building: 'Building A', roomNumber: '102', floor: '1', rent: '₱8,500', status: 'vacant', tenant: null, tenantEmail: null, tenantPhone: null, moveInDate: null, electricMeter: 'EM-002-2024', capacity: '2', size: '25', amenities: 'Air Conditioning, Wi-Fi', description: '' },
-    { id: 3, building: 'Building A', roomNumber: '201', floor: '2', rent: '₱9,000', status: 'occupied', tenant: 'Ana Cruz', tenantEmail: 'ana.cruz@email.com', tenantPhone: '+63 918 234 5678', moveInDate: '2024-02-01', electricMeter: 'EM-003-2024', capacity: '3', size: '30', amenities: 'Air Conditioning, Wi-Fi, Balcony', description: 'Spacious room with balcony' },
-    { id: 4, building: 'Building B', roomNumber: '101', floor: '1', rent: '₱7,500', status: 'occupied', tenant: 'Jose Reyes', tenantEmail: 'jose.reyes@email.com', tenantPhone: '+63 919 345 6789', moveInDate: '2023-12-10', electricMeter: 'EM-004-2024', capacity: '2', size: '22', amenities: 'Wi-Fi', description: '' },
-    { id: 5, building: 'Building B', roomNumber: '205', floor: '2', rent: '₱7,200', status: 'occupied', tenant: 'Linda Fernandez', tenantEmail: 'linda.fernandez@email.com', tenantPhone: '+63 920 456 7890', moveInDate: '2024-03-05', electricMeter: 'EM-005-2024', capacity: '1', size: '18', amenities: 'Wi-Fi, Kitchen', description: 'Studio type' },
-    { id: 6, building: 'Building C', roomNumber: '102', floor: '1', rent: '₱6,800', status: 'vacant', tenant: null, tenantEmail: null, tenantPhone: null, moveInDate: null, electricMeter: 'EM-006-2024', capacity: '2', size: '20', amenities: 'Wi-Fi', description: '' },
-  ]);
 
   const [formData, setFormData] = useState({
     building: '',
