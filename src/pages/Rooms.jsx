@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { useQuery } from '@apollo/client/react';
+import { useQuery, useMutation } from '@apollo/client/react';
+import toast from 'react-hot-toast';
 import DashboardLayout from '../components/DashboardLayout';
 import RoomWizard from '../components/RoomWizard';
 import ConfirmDialog from '../components/ConfirmDialog';
-import { GET_ALL_AMENITIES, GET_ALL_PROPERTIES } from '../lib/graphql-queries';
+import { GET_ALL_AMENITIES, GET_ALL_PROPERTIES, GET_ALL_ROOMS, CREATE_ROOM, UPDATE_ROOM, DELETE_ROOM } from '../lib/graphql-queries';
 
 const Rooms = () => {
   const [showAddModal, setShowAddModal] = useState(false);
@@ -33,11 +34,97 @@ const Rooms = () => {
     }
   });
 
+  // GraphQL Query - Fetch all rooms
+  const { data: roomsData, loading: roomsLoading, error: roomsError, refetch: refetchRooms } = useQuery(GET_ALL_ROOMS, {
+    fetchPolicy: 'cache-and-network',
+    onError: (error) => {
+      console.error('Error fetching rooms:', error);
+    }
+  });
+
+  // GraphQL Mutations for rooms
+  const [createRoom, { loading: createLoading }] = useMutation(CREATE_ROOM, {
+    onCompleted: (data) => {
+      if (data.createRoom.success) {
+        toast.success('Room created successfully!');
+        refetchRooms();
+        closeModal();
+      } else {
+        toast.error(data.createRoom.message || 'Failed to create room');
+      }
+    },
+    onError: (error) => {
+      console.error('Create room error:', error);
+      toast.error(error.message || 'Failed to create room');
+    }
+  });
+
+  const [updateRoom, { loading: updateLoading }] = useMutation(UPDATE_ROOM, {
+    onCompleted: (data) => {
+      if (data.updateRoom.success) {
+        toast.success('Room updated successfully!');
+        refetchRooms();
+        closeModal();
+      } else {
+        toast.error(data.updateRoom.message || 'Failed to update room');
+      }
+    },
+    onError: (error) => {
+      console.error('Update room error:', error);
+      toast.error(error.message || 'Failed to update room');
+    }
+  });
+
+  const [deleteRoom, { loading: deleteLoading }] = useMutation(DELETE_ROOM, {
+    onCompleted: (data) => {
+      if (data.deleteRoom.success) {
+        toast.success('Room deleted successfully!');
+        refetchRooms();
+        setShowDeleteConfirm(false);
+        setRoomToDelete(null);
+      } else {
+        toast.error(data.deleteRoom.message || 'Failed to delete room');
+      }
+    },
+    onError: (error) => {
+      console.error('Delete room error:', error);
+      toast.error(error.message || 'Failed to delete room');
+    }
+  });
+
   // Get amenities from GraphQL response
   const amenities = amenitiesData?.getAllAmenities?.amenities || [];
 
   // Get buildings from GraphQL response
   const buildings = buildingsData?.getAllProperties?.properties || [];
+
+  // Get rooms from GraphQL response or use hardcoded data as fallback
+  const apiRooms = roomsData?.getAllRooms?.rooms || [];
+
+  // Merge API rooms with hardcoded rooms (transform API rooms to match local structure)
+  const transformedApiRooms = apiRooms.map(room => ({
+    id: room.room_id,
+    room_id: room.room_id,
+    building: room.building?.name || '',
+    buildingId: room.building_id,
+    roomNumber: room.roomNumber,
+    floor: room.floor?.toString() || '',
+    rent: room.rent ? `₱${room.rent.toLocaleString()}` : '₱0',
+    status: room.status || 'vacant',
+    tenant: room.tenant?.name || null,
+    tenantEmail: room.tenant?.email || null,
+    tenantPhone: room.tenant?.phone || null,
+    moveInDate: room.tenant?.moveInDate || null,
+    electricMeter: room.electricMeter || '',
+    capacity: room.capacity?.toString() || '',
+    size: room.size?.toString() || '',
+    amenities: room.amenities || '',
+    description: room.description || '',
+    hasSeparateMeter: room.hasSeparateMeter
+  }));
+
+  // Combine API rooms with hardcoded rooms for now (later we'll use only API rooms)
+  const allRooms = [...transformedApiRooms, ...rooms.filter(r => !transformedApiRooms.find(ar => ar.roomNumber === r.roomNumber && ar.building === r.building))];
 
   // Lock body scroll when modal is open
   useEffect(() => {
@@ -76,8 +163,8 @@ const Rooms = () => {
 
   // Filter rooms by selected building (using building_id for API data)
   const filteredRooms = selectedBuilding === 'all'
-    ? rooms
-    : rooms.filter(room => room.buildingId === selectedBuilding || room.building === selectedBuilding);
+    ? allRooms
+    : allRooms.filter(room => room.buildingId === selectedBuilding || room.building === selectedBuilding);
 
   const handleNext = () => {
     setCurrentStep(currentStep + 1);
@@ -87,45 +174,44 @@ const Rooms = () => {
     setCurrentStep(currentStep - 1);
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (editingRoom) {
-      // Update existing room
-      const updatedRoom = {
-        ...editingRoom,
-        ...formData,
-        rent: `₱${formData.rent}`
-      };
-      setRooms(rooms.map(r => r.id === editingRoom.id ? updatedRoom : r));
-    } else {
-      // Add new room
-      const newRoom = {
-        id: rooms.length + 1,
-        ...formData,
-        rent: `₱${formData.rent}`,
-        status: 'vacant',
-        tenant: null
-      };
-      setRooms([...rooms, newRoom]);
-    }
+    // Prepare input for GraphQL mutation
+    const roomInput = {
+      building_id: formData.buildingId,
+      roomNumber: formData.roomNumber,
+      floor: parseInt(formData.floor),
+      hasSeparateMeter: formData.hasSeparateMeter,
+      electricMeter: formData.hasSeparateMeter ? formData.electricMeter : null,
+      rent: parseFloat(formData.rent),
+      capacity: parseInt(formData.capacity),
+      size: formData.size ? parseFloat(formData.size) : null,
+      description: formData.description || null,
+      amenities: formData.amenities || null
+    };
 
-    setFormData({
-      building: '',
-      buildingId: '',
-      roomNumber: '',
-      floor: '',
-      rent: '',
-      hasSeparateMeter: undefined,
-      electricMeter: '',
-      capacity: '',
-      size: '',
-      description: '',
-      amenities: ''
-    });
-    setCurrentStep(1);
-    setShowAddModal(false);
-    setEditingRoom(null);
+    try {
+      if (editingRoom) {
+        // Update existing room
+        await updateRoom({
+          variables: {
+            room_id: editingRoom.room_id,
+            input: roomInput
+          }
+        });
+      } else {
+        // Create new room
+        await createRoom({
+          variables: {
+            input: roomInput
+          }
+        });
+      }
+    } catch (error) {
+      // Error handling is done in mutation onError callback
+      console.error('Submit error:', error);
+    }
   };
 
   const closeModal = () => {
@@ -167,17 +253,18 @@ const Rooms = () => {
   };
 
   const handleEditRoom = (room) => {
+    console.log('Editing room:', room);
     setEditingRoom(room);
     setFormData({
       building: room.building || '',
       buildingId: room.buildingId || '',
       roomNumber: room.roomNumber || '',
-      floor: room.floor || '',
-      rent: room.rent ? room.rent.replace('₱', '').replace(',', '') : '',
-      hasSeparateMeter: room.electricMeter ? true : false,
+      floor: room.floor?.toString() || '',
+      rent: room.rent ? room.rent.replace('₱', '').replace(/,/g, '') : '',
+      hasSeparateMeter: room.hasSeparateMeter !== undefined ? room.hasSeparateMeter : (room.electricMeter ? true : false),
       electricMeter: room.electricMeter || '',
-      capacity: room.capacity || '',
-      size: room.size || '',
+      capacity: room.capacity?.toString() || '',
+      size: room.size?.toString() || '',
       description: room.description || '',
       amenities: room.amenities || ''
     });
@@ -189,10 +276,18 @@ const Rooms = () => {
     setShowDeleteConfirm(true);
   };
 
-  const confirmDelete = () => {
+  const confirmDelete = async () => {
     if (roomToDelete) {
-      setRooms(rooms.filter(r => r.id !== roomToDelete.id));
-      setRoomToDelete(null);
+      try {
+        await deleteRoom({
+          variables: {
+            room_id: roomToDelete.room_id
+          }
+        });
+      } catch (error) {
+        // Error handling is done in mutation onError callback
+        console.error('Delete error:', error);
+      }
     }
   };
 

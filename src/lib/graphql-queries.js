@@ -276,3 +276,168 @@ export const GET_ALL_AMENITIES = gql`
   }
 `;
 
+// ============================================================================
+// Room/Unit Queries
+// ============================================================================
+
+export const GET_ALL_ROOMS = gql`
+  query GetAllRooms($page: PageInput) {
+    getAllRooms(page: $page) {
+      code
+      success
+      message
+      rooms {
+        room_id
+        building_id
+        building {
+          building_id
+          name
+        }
+        roomNumber
+        floor
+        hasSeparateMeter
+        electricMeter
+        rent
+        capacity
+        size
+        description
+        amenities
+        status
+        tenant {
+          tenant_id
+          name
+          email
+          phone
+          moveInDate
+        }
+        audit {
+          created_by
+          created_date
+          modified_by
+          modified_date
+        }
+      }
+    }
+  }
+`;
+
+export const GET_ROOM = gql`
+  query GetRoom($room_id: NonEmptyString!) {
+    getRoom(room_id: $room_id) {
+      code
+      success
+      message
+      room {
+        room_id
+        building_id
+        building {
+          building_id
+          name
+        }
+        roomNumber
+        floor
+        hasSeparateMeter
+        electricMeter
+        rent
+        capacity
+        size
+        description
+        amenities
+        status
+        tenant {
+          tenant_id
+          name
+          email
+          phone
+          moveInDate
+        }
+        audit {
+          created_by
+          created_date
+          modified_by
+          modified_date
+        }
+      }
+    }
+  }
+`;
+
+// ============================================================================
+// Room/Unit Mutations
+// ============================================================================
+
+export const CREATE_ROOM = gql`
+  mutation CreateRoom($input: RoomInput!) {
+    createRoom(input: $input) {
+      code
+      success
+      message
+      room_id
+      room {
+        room_id
+        building_id
+        building {
+          building_id
+          name
+        }
+        roomNumber
+        floor
+        hasSeparateMeter
+        electricMeter
+        rent
+        capacity
+        size
+        description
+        amenities
+        status
+        audit {
+          created_by
+          created_date
+        }
+      }
+    }
+  }
+`;
+
+export const UPDATE_ROOM = gql`
+  mutation UpdateRoom($room_id: NonEmptyString!, $input: RoomInput!) {
+    updateRoom(room_id: $room_id, input: $input) {
+      code
+      success
+      message
+      room {
+        room_id
+        building_id
+        building {
+          building_id
+          name
+        }
+        roomNumber
+        floor
+        hasSeparateMeter
+        electricMeter
+        rent
+        capacity
+        size
+        description
+        amenities
+        status
+        audit {
+          modified_by
+          modified_date
+        }
+      }
+    }
+  }
+`;
+
+export const DELETE_ROOM = gql`
+  mutation DeleteRoom($room_id: NonEmptyString!) {
+    deleteRoom(room_id: $room_id) {
+      code
+      success
+      message
+    }
+  }
+`;
+

@@ -11,6 +11,7 @@ const Buildings = () => {
   const [currentStep, setCurrentStep] = useState(1);
   const [photos, setPhotos] = useState([]);
   const [locationLoading, setLocationLoading] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
 
   // GraphQL Query - Fetch all properties
   const { data, loading: queryLoading, error: queryError, refetch } = useQuery(GET_ALL_PROPERTIES, {
@@ -24,37 +25,49 @@ const Buildings = () => {
   const [createProperty, { loading: createLoading }] = useMutation(CREATE_PROPERTY, {
     onCompleted: (data) => {
       if (data.createProperty.success) {
-        toast.success('Building created successfully!');
+        toast.success('Property created successfully!');
         refetch();
         closeModal();
       } else {
-        toast.error(data.createProperty.message || 'Failed to create building');
+        toast.error(data.createProperty.message || 'Failed to create property');
       }
     },
     onError: (error) => {
       console.error('Create property error:', error);
-      toast.error(error.message || 'Failed to create building');
+      toast.error(error.message || 'Failed to create property');
     }
   });
 
   const [updateProperty, { loading: updateLoading }] = useMutation(UPDATE_PROPERTY, {
     onCompleted: (data) => {
       if (data.updateProperty.success) {
-        toast.success('Building updated successfully!');
+        toast.success('Property updated successfully!');
         refetch();
         closeModal();
       } else {
-        toast.error(data.updateProperty.message || 'Failed to update building');
+        toast.error(data.updateProperty.message || 'Failed to update property');
       }
     },
     onError: (error) => {
       console.error('Update property error:', error);
-      toast.error(error.message || 'Failed to update building');
+      toast.error(error.message || 'Failed to update property');
     }
   });
 
   // Get buildings from GraphQL response or use empty array
   const buildings = data?.getAllProperties?.properties || [];
+
+  // Filter buildings based on search query
+  const filteredBuildings = buildings.filter((building) => {
+    if (!searchQuery) return true;
+    const query = searchQuery.toLowerCase();
+    return (
+      building.name?.toLowerCase().includes(query) ||
+      building.address?.toLowerCase().includes(query) ||
+      building.city?.name?.toLowerCase().includes(query) ||
+      building.province?.name?.toLowerCase().includes(query)
+    );
+  });
 
   // Lock body scroll when modal is open
   useEffect(() => {
@@ -254,8 +267,8 @@ const Buildings = () => {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 sm:mb-6 gap-3">
         <div>
-          <h2 className="text-xl sm:text-2xl font-display font-bold text-neutral-900">Buildings</h2>
-          <p className="text-sm sm:text-base text-neutral-600">Manage your property buildings</p>
+          <h2 className="text-xl sm:text-2xl font-display font-bold text-neutral-900">Properties</h2>
+          <p className="text-sm sm:text-base text-neutral-600">Manage your rental properties</p>
         </div>
         <button
           onClick={() => setShowAddModal(true)}
@@ -264,9 +277,37 @@ const Buildings = () => {
           <svg className="w-5 h-5 sm:mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
           </svg>
-          <span className="hidden sm:inline">Add Building</span>
+          <span className="hidden sm:inline">Add Property</span>
           <span className="sm:hidden ml-2">Add</span>
         </button>
+      </div>
+
+      {/* Search Bar */}
+      <div className="mb-6">
+        <div className="relative">
+          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+            <svg className="h-5 w-5 text-neutral-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+          </div>
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="block w-full pl-10 pr-3 py-2.5 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-sm"
+            placeholder="Search properties by name, address, city, or province..."
+          />
+          {searchQuery && (
+            <button
+              onClick={() => setSearchQuery('')}
+              className="absolute inset-y-0 right-0 pr-3 flex items-center"
+            >
+              <svg className="h-5 w-5 text-neutral-400 hover:text-neutral-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Loading State */}
@@ -276,7 +317,7 @@ const Buildings = () => {
             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
           </svg>
-          <span className="ml-3 text-neutral-600">Loading buildings...</span>
+          <span className="ml-3 text-neutral-600">Loading properties...</span>
         </div>
       )}
 
@@ -286,7 +327,7 @@ const Buildings = () => {
           <svg className="w-16 h-16 text-red-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
-          <h3 className="text-lg font-semibold text-neutral-900 mb-2">Failed to load buildings</h3>
+          <h3 className="text-lg font-semibold text-neutral-900 mb-2">Failed to load properties</h3>
           <p className="text-neutral-600 mb-4">{queryError.message}</p>
           <button onClick={() => refetch()} className="btn-primary">
             Try Again
@@ -300,18 +341,32 @@ const Buildings = () => {
           <svg className="w-16 h-16 text-neutral-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
           </svg>
-          <h3 className="text-lg font-semibold text-neutral-900 mb-2">No buildings yet</h3>
-          <p className="text-neutral-600 mb-4">Get started by adding your first building</p>
+          <h3 className="text-lg font-semibold text-neutral-900 mb-2">No properties yet</h3>
+          <p className="text-neutral-600 mb-4">Get started by adding your first property</p>
           <button onClick={() => setShowAddModal(true)} className="btn-primary">
-            Add Building
+            Add Property
           </button>
         </div>
       )}
 
-      {/* Buildings Grid */}
-      {buildings.length > 0 && (
+      {/* No Search Results */}
+      {!queryLoading && !queryError && buildings.length > 0 && filteredBuildings.length === 0 && (
+        <div className="text-center py-12">
+          <svg className="w-16 h-16 text-neutral-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+          </svg>
+          <h3 className="text-lg font-semibold text-neutral-900 mb-2">No properties found</h3>
+          <p className="text-neutral-600 mb-4">Try adjusting your search terms</p>
+          <button onClick={() => setSearchQuery('')} className="btn-primary">
+            Clear Search
+          </button>
+        </div>
+      )}
+
+      {/* Properties Grid */}
+      {filteredBuildings.length > 0 && (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
-        {buildings.map((building) => (
+        {filteredBuildings.map((building) => (
           <div key={building.building_id} className="card p-4 sm:p-5 hover:shadow-lg transition-shadow">
             <div className="flex items-start justify-between mb-3">
               <div className="w-10 h-10 sm:w-12 sm:h-12 bg-primary-100 rounded-lg flex items-center justify-center">
@@ -392,7 +447,7 @@ const Buildings = () => {
                 <div className="flex items-center justify-between mb-2 sm:mb-3">
                   <div className="flex items-center gap-2">
                     <h3 className="text-lg sm:text-xl font-display font-bold text-neutral-900">
-                      {editingBuilding ? 'Edit Building' : 'Add New Building'}
+                      {editingBuilding ? 'Edit Property' : 'Add New Property'}
                     </h3>
                     {!editingBuilding && (
                       <button
