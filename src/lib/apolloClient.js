@@ -83,17 +83,17 @@ const cache = new InMemoryCache({
       },
     },
     // Add type policies for your entities
-    Building: {
-      keyFields: ['id'],
+    Property: {
+      keyFields: ['building_id'],
     },
     Room: {
-      keyFields: ['id'],
+      keyFields: ['room_id'],
     },
     Tenant: {
-      keyFields: ['id'],
+      keyFields: ['tenant_id'],
     },
     Bill: {
-      keyFields: ['id'],
+      keyFields: ['bill_id'],
     },
   },
 });
