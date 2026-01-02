@@ -4,12 +4,12 @@ import toast from 'react-hot-toast';
 import DashboardLayout from '../components/DashboardLayout';
 import RoomWizard from '../components/RoomWizard';
 import ConfirmDialog from '../components/ConfirmDialog';
-import { GET_ALL_AMENITIES, GET_ALL_PROPERTIES, GET_ALL_ROOMS, GET_ROOMS_BY_BUILDING, CREATE_ROOM, UPDATE_ROOM, DELETE_ROOM } from '../lib/graphql-queries';
+import { GET_ALL_AMENITIES, GET_ALL_PROPERTIES, GET_ROOMS_BY_BUILDING, CREATE_ROOM, UPDATE_ROOM, DELETE_ROOM } from '../lib/graphql-queries';
 
 const Rooms = () => {
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingRoom, setEditingRoom] = useState(null);
-  const [selectedBuilding, setSelectedBuilding] = useState('all');
+  const [selectedBuilding, setSelectedBuilding] = useState(''); // Empty string means no building selected yet
   const [showDeleted, setShowDeleted] = useState(true);
   const [currentStep, setCurrentStep] = useState(1);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -36,35 +36,26 @@ const Rooms = () => {
     }
   });
 
-  // GraphQL Query - Fetch all rooms (always fetch for dropdown counts)
-  const { data: allRoomsData, loading: allRoomsLoading, refetch: refetchAllRooms } = useQuery(GET_ALL_ROOMS, {
-    variables: {
-      page: {
-        limit: 100,
-        offset: 0
-      }
-    },
+  // GraphQL Query - Fetch rooms by building (only query we use)
+  // We removed "All Buildings" option to avoid expensive Scan operations
+  const [getRoomsByBuilding, { data: roomsData, loading: roomsLoading, refetch: refetchRooms }] = useLazyQuery(GET_ROOMS_BY_BUILDING, {
     fetchPolicy: 'network-only',
     nextFetchPolicy: 'network-only',
-    onError: (error) => {
-      console.error('Error fetching all rooms:', error);
-    },
-    onCompleted: (data) => {
-      console.log('GET_ALL_ROOMS completed:', data);
-    }
-  });
-
-  // GraphQL Lazy Query - Fetch rooms by building (used when a specific building is selected)
-  const [getRoomsByBuilding, { data: buildingRoomsData, loading: buildingRoomsLoading }] = useLazyQuery(GET_ROOMS_BY_BUILDING, {
-    fetchPolicy: 'network-only', // Always fetch fresh data from network
     onError: (error) => {
       console.error('Error fetching rooms by building:', error);
     }
   });
 
-  // Trigger getRoomsByBuilding when a specific building is selected
+  // Auto-select first building when buildings are loaded
   useEffect(() => {
-    if (selectedBuilding !== 'all') {
+    if (buildings.length > 0 && !selectedBuilding) {
+      setSelectedBuilding(buildings[0].building_id);
+    }
+  }, [buildings, selectedBuilding]);
+
+  // Trigger getRoomsByBuilding when a building is selected
+  useEffect(() => {
+    if (selectedBuilding) {
       getRoomsByBuilding({
         variables: {
           building_id: selectedBuilding
@@ -72,23 +63,6 @@ const Rooms = () => {
       });
     }
   }, [selectedBuilding, getRoomsByBuilding]);
-
-  // Determine which data to use based on selected building
-  const roomsData = selectedBuilding === 'all' ? allRoomsData : buildingRoomsData;
-  const roomsLoading = selectedBuilding === 'all' ? allRoomsLoading : buildingRoomsLoading;
-
-  // Refetch function that works for both queries
-  const refetchRooms = () => {
-    if (selectedBuilding === 'all') {
-      refetchAllRooms();
-    } else {
-      getRoomsByBuilding({
-        variables: {
-          building_id: selectedBuilding
-        }
-      });
-    }
-  };
 
   // GraphQL Mutations for rooms
   const [createRoom, { loading: createLoading }] = useMutation(CREATE_ROOM, {
@@ -146,10 +120,8 @@ const Rooms = () => {
   // Get buildings from GraphQL response
   const buildings = buildingsData?.getAllProperties?.properties || [];
 
-  // Get rooms from GraphQL response based on which query was used
-  const apiRooms = selectedBuilding === 'all'
-    ? (roomsData?.getAllRooms?.rooms || [])
-    : (roomsData?.getRoomsByBuilding?.rooms || []);
+  // Get rooms from GraphQL response (only from getRoomsByBuilding)
+  const apiRooms = roomsData?.getRoomsByBuilding?.rooms || [];
 
   // Transform API rooms to match local structure
   const allRooms = apiRooms.map(room => ({
@@ -176,31 +148,10 @@ const Rooms = () => {
     deletedDate: room.audit?.deleted_date || null
   }));
 
-  // For room counts in dropdown, we need to fetch all rooms regardless of filter
-  // Use allRoomsData if available, otherwise calculate from current data
-  const roomsForCounting = React.useMemo(() => {
-    if (allRoomsData?.getAllRooms?.rooms) {
-      return allRoomsData.getAllRooms.rooms.map(room => ({
-        buildingId: room.building_id,
-        deleted: room.deleted || false
-      }));
-    }
-    return allRooms.map(room => ({
-      buildingId: room.buildingId,
-      deleted: room.deleted || false
-    }));
-  }, [allRoomsData, allRooms]);
-
-  // Calculate actual room count for each building (excluding deleted rooms)
-  const buildingRoomCounts = React.useMemo(() => {
-    const counts = {};
-    roomsForCounting.forEach(room => {
-      if (room.buildingId && !room.deleted) {
-        counts[room.buildingId] = (counts[room.buildingId] || 0) + 1;
-      }
-    });
-    return counts;
-  }, [roomsForCounting]);
+  // Calculate room count for the currently selected building only
+  const currentBuildingRoomCount = React.useMemo(() => {
+    return allRooms.filter(room => !room.deleted).length;
+  }, [allRooms]);
 
   // Lock body scroll when modal is open
   useEffect(() => {
@@ -389,7 +340,17 @@ const Rooms = () => {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6 gap-4">
         <div>
           <h2 className="text-2xl font-display font-bold text-neutral-900">Rooms & Units</h2>
-          <p className="text-neutral-600">Manage rooms and electric meters</p>
+          <p className="text-neutral-600">
+            {selectedBuilding ? (
+              <>
+                {buildings.find(b => b.building_id === selectedBuilding)?.name || 'Building'}
+                <span className="mx-2">•</span>
+                {currentBuildingRoomCount} {currentBuildingRoomCount === 1 ? 'room' : 'rooms'}
+              </>
+            ) : (
+              'Select a building to view rooms'
+            )}
+          </p>
         </div>
         <button
           onClick={() => setShowAddModal(true)}
@@ -420,15 +381,14 @@ const Rooms = () => {
                 onChange={(e) => setSelectedBuilding(e.target.value)}
                 className="w-full appearance-none bg-white border border-neutral-300 rounded-lg pl-10 pr-10 py-2.5 text-sm font-medium text-neutral-900 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 cursor-pointer hover:border-neutral-400 transition-colors"
               >
-                <option value="all">All Buildings ({buildings.length})</option>
+                {!selectedBuilding && <option value="">Select a building...</option>}
                 {buildingsLoading ? (
-                  <option disabled>Loading...</option>
+                  <option disabled>Loading buildings...</option>
                 ) : (
                   buildings.map((building) => {
-                    const actualRoomCount = buildingRoomCounts[building.building_id] || 0;
                     return (
                       <option key={building.building_id} value={building.building_id}>
-                        {building.name} ({actualRoomCount} {actualRoomCount === 1 ? 'room' : 'rooms'})
+                        {building.name}
                       </option>
                     );
                   })
@@ -488,9 +448,20 @@ const Rooms = () => {
 
       {/* Rooms Table */}
       <div className="card overflow-hidden">
-        {roomsLoading ? (
+        {!selectedBuilding ? (
           <div className="flex items-center justify-center py-12">
-
+            <div className="flex flex-col items-center gap-3 text-center">
+              <svg className="w-16 h-16 text-neutral-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+              </svg>
+              <div>
+                <p className="text-lg font-medium text-neutral-900 mb-1">No Building Selected</p>
+                <p className="text-sm text-neutral-600">Please select a building from the dropdown above to view its rooms</p>
+              </div>
+            </div>
+          </div>
+        ) : roomsLoading ? (
+          <div className="flex items-center justify-center py-12">
             <div className="flex flex-col items-center gap-3">
               <svg className="animate-spin h-8 w-8 text-primary-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
