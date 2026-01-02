@@ -46,6 +46,15 @@ const Rooms = () => {
     }
   });
 
+  // Get amenities from GraphQL response
+  const amenities = amenitiesData?.getAllAmenities?.amenities || [];
+
+  // Get buildings from GraphQL response
+  const buildings = buildingsData?.getAllProperties?.properties || [];
+
+  // Get rooms from GraphQL response (only from getRoomsByBuilding)
+  const apiRooms = roomsData?.getRoomsByBuilding?.rooms || [];
+
   // Auto-select first building when buildings are loaded
   useEffect(() => {
     if (buildings.length > 0 && !selectedBuilding) {
@@ -113,15 +122,6 @@ const Rooms = () => {
       toast.error(error.message || 'Failed to delete room');
     }
   });
-
-  // Get amenities from GraphQL response
-  const amenities = amenitiesData?.getAllAmenities?.amenities || [];
-
-  // Get buildings from GraphQL response
-  const buildings = buildingsData?.getAllProperties?.properties || [];
-
-  // Get rooms from GraphQL response (only from getRoomsByBuilding)
-  const apiRooms = roomsData?.getRoomsByBuilding?.rooms || [];
 
   // Transform API rooms to match local structure
   const allRooms = apiRooms.map(room => ({
