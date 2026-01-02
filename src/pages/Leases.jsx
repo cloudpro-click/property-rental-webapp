@@ -216,25 +216,7 @@ const Leases = () => {
     }
   ];
 
-  // Mock data for wizard
-  const mockProperties = [
-    { building_id: 'BLDG001', name: 'Sunshine Apartments' },
-    { building_id: 'BLDG002', name: 'Moonlight Residences' },
-    { building_id: 'BLDG003', name: 'Green Valley' }
-  ];
-
-  const mockRooms = [
-    { room_id: 'ROOM006', building_id: 'BLDG001', roomNumber: '301', floor: 3, capacity: 2, rent: 8000, status: 'vacant', occupancy: { current_tenants: 0, capacity: 2, available_slots: 2 } },
-    { room_id: 'ROOM007', building_id: 'BLDG001', roomNumber: '302', floor: 3, capacity: 1, rent: 6500, status: 'vacant', occupancy: { current_tenants: 0, capacity: 1, available_slots: 1 } },
-    { room_id: 'ROOM001', building_id: 'BLDG001', roomNumber: '101', floor: 1, capacity: 3, rent: 12000, status: 'occupied', occupancy: { current_tenants: 2, capacity: 3, available_slots: 1 } },
-    { room_id: 'ROOM008', building_id: 'BLDG002', roomNumber: '201', floor: 2, capacity: 2, rent: 9000, status: 'vacant', occupancy: { current_tenants: 0, capacity: 2, available_slots: 2 } }
-  ];
-
-  const mockTenants = [
-    { tenant_id: 'TEN009', name: 'Pedro Martinez', email: 'pedro.martinez@email.com', phone: '+639181234567' },
-    { tenant_id: 'TEN010', name: 'Ana Lopez', email: 'ana.lopez@email.com', phone: '+639192345678' },
-    { tenant_id: 'TEN011', name: 'Carlos Reyes', email: 'carlos.reyes@email.com', phone: '+639203456789' }
-  ];
+  // Note: Properties, Rooms, and Tenants are now fetched directly by LeaseWizard component using GraphQL queries
 
   // Filter leases
   const filteredLeases = mockLeases.filter(lease => {
@@ -967,9 +949,6 @@ const Leases = () => {
                 handleBack={handleBack}
                 handleSubmit={handleSubmitLease}
                 closeModal={closeLeaseModal}
-                properties={mockProperties}
-                rooms={mockRooms}
-                tenants={mockTenants}
                 isSubmitting={isSubmitting}
               />
             </div>

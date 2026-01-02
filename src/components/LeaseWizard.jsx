@@ -1,4 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { useQuery } from '@apollo/client/react';
+import { GET_ALL_PROPERTIES, GET_ROOMS_BY_BUILDING, GET_ALL_TENANTS } from '../lib/graphql-queries';
 
 const LeaseWizard = ({
   isOpen,
@@ -10,67 +12,88 @@ const LeaseWizard = ({
   handleSubmit,
   closeModal,
   isEditing = false,
-  properties = [],
-  rooms = [],
-  tenants = [],
   isSubmitting = false
 }) => {
   const totalSteps = 4;
+
+  // GraphQL Queries - Load data only when needed for each step (lazy loading)
+  // Step 1: Properties - load when modal opens
+  const { data: propertiesData, loading: propertiesLoading, error: propertiesError } = useQuery(GET_ALL_PROPERTIES, {
+    variables: { page: { limit: 100, offset: 0 } },
+    skip: !isOpen
+  });
+
+  // Step 1: Rooms - load when property is selected
+  const { data: roomsData, loading: roomsLoading, error: roomsError } = useQuery(GET_ROOMS_BY_BUILDING, {
+    variables: { building_id: formData.propertyId },
+    skip: !formData.propertyId || !isOpen
+  });
+
+  // Step 2: Tenants - load only when reaching step 2 (lazy loading for better UX)
+  const { data: tenantsData, loading: tenantsLoading, error: tenantsError } = useQuery(GET_ALL_TENANTS, {
+    variables: { page: { limit: 100, offset: 0 } },
+    skip: !isOpen || currentStep < 2
+  });
+
   const [roomFilter, setRoomFilter] = useState('vacant'); // vacant, occupied (default: vacant only)
   const [selectedProperty, setSelectedProperty] = useState(null);
   const [propertySearch, setPropertySearch] = useState('');
   const [showPropertyDropdown, setShowPropertyDropdown] = useState(false);
-  const [filteredRooms, setFilteredRooms] = useState([]);
   const [tenantSearch, setTenantSearch] = useState('');
   const [showTenantDropdown, setShowTenantDropdown] = useState(false);
-  const [filteredTenants, setFilteredTenants] = useState([]);
   const [selectedTenants, setSelectedTenants] = useState([]); // Array of selected tenants
   const [primaryTenantId, setPrimaryTenantId] = useState(null); // ID of primary tenant
-  const [filteredProperties, setFilteredProperties] = useState([]);
 
-  // Filter properties based on search
-  useEffect(() => {
+  // Extract data from API responses
+  const properties = propertiesData?.getAllProperties?.properties || [];
+  const rooms = roomsData?.getRoomsByBuilding?.rooms || [];
+  const tenants = tenantsData?.getAllTenants?.tenants || [];
+
+  // Filter properties based on search - use useMemo to prevent infinite loops
+  const filteredPropertiesComputed = useMemo(() => {
     if (propertySearch.trim() === '') {
-      setFilteredProperties(properties.slice(0, 5)); // Show first 5
+      return properties.slice(0, 5); // Show first 5
     } else {
       const search = propertySearch.toLowerCase();
-      const filtered = properties.filter(property =>
+      return properties.filter(property =>
         property.name.toLowerCase().includes(search)
       ).slice(0, 5);
-      setFilteredProperties(filtered);
     }
   }, [propertySearch, properties]);
 
-  // Filter rooms based on property and status
-  useEffect(() => {
+  // Filter rooms based on property and status - use useMemo to prevent infinite loops
+  // Note: API returns status as object { code, label, description, sortOrder, isActive }
+  const filteredRoomsComputed = useMemo(() => {
     if (!formData.propertyId) {
-      setFilteredRooms([]);
-      return;
+      return [];
     }
 
-    let filtered = rooms.filter(room => room.building_id === formData.propertyId);
+    // Filter by building and exclude deleted rooms
+    let filtered = rooms.filter(room =>
+      room.building_id === formData.propertyId &&
+      room.status?.code?.toUpperCase() !== 'DELETED'
+    );
 
     if (roomFilter === 'vacant') {
-      filtered = filtered.filter(room => room.status === 'vacant');
+      filtered = filtered.filter(room => room.status?.code?.toUpperCase() === 'VACANT');
     } else if (roomFilter === 'occupied') {
-      filtered = filtered.filter(room => room.status === 'occupied' && room.occupancy?.available_slots > 0);
+      filtered = filtered.filter(room => room.status?.code?.toUpperCase() === 'OCCUPIED' && room.occupancy?.available_slots > 0);
     }
 
-    setFilteredRooms(filtered);
+    return filtered;
   }, [formData.propertyId, roomFilter, rooms]);
 
-  // Filter tenants based on search
-  useEffect(() => {
+  // Filter tenants based on search - use useMemo to prevent infinite loops
+  const filteredTenantsComputed = useMemo(() => {
     if (tenantSearch.trim() === '') {
-      setFilteredTenants(tenants.slice(0, 5)); // Show first 5
+      return tenants.slice(0, 5); // Show first 5
     } else {
       const search = tenantSearch.toLowerCase();
-      const filtered = tenants.filter(tenant =>
+      return tenants.filter(tenant =>
         tenant.name.toLowerCase().includes(search) ||
         tenant.email.toLowerCase().includes(search) ||
         tenant.phone.includes(search)
       ).slice(0, 5);
-      setFilteredTenants(filtered);
     }
   }, [tenantSearch, tenants]);
 
@@ -98,7 +121,7 @@ const LeaseWizard = ({
       floor: room.floor,
       capacity: room.capacity,
       rent: room.rent,
-      isAddingRoommate: room.status === 'occupied'
+      isAddingRoommate: room.status?.code?.toUpperCase() === 'OCCUPIED'
     });
   };
 
@@ -275,18 +298,26 @@ const LeaseWizard = ({
                       }
                     }}
                     onFocus={() => setShowPropertyDropdown(true)}
-                    placeholder="Search property..."
+                    placeholder={propertiesLoading ? "Loading properties..." : "Search property..."}
                     className="input-field pr-10"
+                    disabled={propertiesLoading}
                     required
                   />
-                  <svg className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-neutral-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                  </svg>
+                  {propertiesLoading ? (
+                    <svg className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-primary-600 animate-spin" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                  ) : (
+                    <svg className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-neutral-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                    </svg>
+                  )}
 
                   {/* Property Dropdown */}
-                  {showPropertyDropdown && filteredProperties.length > 0 && !selectedProperty && (
+                  {showPropertyDropdown && filteredPropertiesComputed.length > 0 && !selectedProperty && (
                     <div className="absolute z-10 w-full mt-1 bg-white border border-neutral-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
-                      {filteredProperties.map(property => (
+                      {filteredPropertiesComputed.map(property => (
                         <button
                           key={property.building_id}
                           type="button"
@@ -346,7 +377,25 @@ const LeaseWizard = ({
               {/* Room Cards */}
               {formData.propertyId && (
                 <div className="space-y-3 max-h-96 overflow-y-auto">
-                  {filteredRooms.length === 0 ? (
+                  {roomsLoading ? (
+                    <div className="text-center py-8 text-neutral-500">
+                      <svg className="w-12 h-12 mx-auto mb-2 text-primary-600 animate-spin" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      <p className="text-sm">Loading rooms...</p>
+                    </div>
+                  ) : (roomsError || roomsData?.getRoomsByBuilding?.success === false) ? (
+                    <div className="text-center py-8 text-red-500 bg-red-50 rounded-lg border border-red-200">
+                      <svg className="w-12 h-12 mx-auto mb-2 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                      </svg>
+                      <p className="text-sm font-medium">Failed to load rooms</p>
+                      <p className="text-xs mt-1 text-red-400 max-w-xs mx-auto break-words">
+                        {roomsError?.message || roomsError?.graphQLErrors?.[0]?.message || roomsData?.getRoomsByBuilding?.message || 'Unknown error'}
+                      </p>
+                    </div>
+                  ) : filteredRoomsComputed.length === 0 ? (
                     <div className="text-center py-8 text-neutral-500">
                       <svg className="w-12 h-12 mx-auto mb-2 text-neutral-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
@@ -354,7 +403,7 @@ const LeaseWizard = ({
                       <p className="text-sm">No rooms available</p>
                     </div>
                   ) : (
-                    filteredRooms.map(room => (
+                    filteredRoomsComputed.map(room => (
                       <button
                         key={room.room_id}
                         type="button"
@@ -369,20 +418,22 @@ const LeaseWizard = ({
                           <div className="flex-1">
                             <div className="flex items-center gap-2 mb-1">
                               <span className="font-semibold text-neutral-900">Room {room.roomNumber}</span>
-                              <span className={`px-2 py-0.5 rounded text-xs font-semibold ${
-                                room.status === 'vacant'
-                                  ? 'bg-green-100 text-green-800'
-                                  : room.status === 'occupied'
-                                  ? 'bg-blue-100 text-blue-800'
-                                  : 'bg-red-100 text-red-800'
-                              }`}>
-                                {room.status.charAt(0).toUpperCase() + room.status.slice(1)}
-                              </span>
+                              {room.status?.label && (
+                                <span className={`px-2 py-0.5 rounded text-xs font-semibold ${
+                                  room.status?.code?.toUpperCase() === 'VACANT'
+                                    ? 'bg-green-100 text-green-800'
+                                    : room.status?.code?.toUpperCase() === 'OCCUPIED'
+                                    ? 'bg-blue-100 text-blue-800'
+                                    : 'bg-red-100 text-red-800'
+                                }`}>
+                                  {room.status.label}
+                                </span>
+                              )}
                             </div>
                             <div className="text-sm text-neutral-600 space-y-1">
                               <div>Floor {room.floor} • Capacity: {room.capacity}</div>
                               <div className="font-medium text-primary-600">₱{room.rent?.toLocaleString()}/month</div>
-                              {room.status === 'occupied' && room.occupancy && (
+                              {room.status?.code?.toUpperCase() === 'OCCUPIED' && room.occupancy && (
                                 <div className="text-xs text-blue-600">
                                   {room.occupancy.current_tenants}/{room.capacity} occupied • {room.occupancy.available_slots} slot(s) available
                                 </div>
@@ -434,17 +485,25 @@ const LeaseWizard = ({
                       setShowTenantDropdown(true);
                     }}
                     onFocus={() => setShowTenantDropdown(true)}
-                    placeholder="Search by name, email, or phone"
+                    placeholder={tenantsLoading ? "Loading tenants..." : "Search by name, email, or phone"}
                     className="input-field pr-10"
+                    disabled={tenantsLoading}
                   />
-                  <svg className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-neutral-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                  </svg>
+                  {tenantsLoading ? (
+                    <svg className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-primary-600 animate-spin" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                  ) : (
+                    <svg className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-neutral-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                    </svg>
+                  )}
 
                   {/* Tenant Dropdown */}
-                  {showTenantDropdown && filteredTenants.length > 0 && (
+                  {showTenantDropdown && filteredTenantsComputed.length > 0 && (
                     <div className="absolute z-10 w-full mt-1 bg-white border border-neutral-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
-                      {filteredTenants.map(tenant => (
+                      {filteredTenantsComputed.map(tenant => (
                         <button
                           key={tenant.tenant_id}
                           type="button"

@@ -302,7 +302,13 @@ export const GET_ALL_ROOMS = gql`
         size
         description
         amenities
-        status
+        status {
+          code
+          label
+          description
+          sortOrder
+          isActive
+        }
         deleted
         tenant {
           tenant_id
@@ -346,7 +352,13 @@ export const GET_ROOM = gql`
         size
         description
         amenities
-        status
+        status {
+          code
+          label
+          description
+          sortOrder
+          isActive
+        }
         tenant {
           tenant_id
           name
@@ -387,7 +399,13 @@ export const GET_ROOMS_BY_BUILDING = gql`
         size
         description
         amenities
-        status
+        status {
+          code
+          label
+          description
+          sortOrder
+          isActive
+        }
         deleted
         tenant {
           tenant_id

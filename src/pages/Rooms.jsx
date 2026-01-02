@@ -47,7 +47,7 @@ const Rooms = () => {
 
   // GraphQL Query - Fetch rooms by building (only query we use)
   // We removed "All Buildings" option to avoid expensive Scan operations
-  const [getRoomsByBuilding, { data: roomsData, loading: roomsLoading, refetch: refetchRooms }] = useLazyQuery(GET_ROOMS_BY_BUILDING, {
+  const [getRoomsByBuilding, { data: roomsData, loading: roomsLoading, error: roomsError, refetch: refetchRooms }] = useLazyQuery(GET_ROOMS_BY_BUILDING, {
     fetchPolicy: 'network-only',
     nextFetchPolicy: 'network-only',
     onError: (error) => {
@@ -150,7 +150,7 @@ const Rooms = () => {
     let mockCurrentOccupancy = 0;
 
     // Add mock tenants to some occupied rooms for demonstration
-    if (room.status === 'occupied' && room.tenant) {
+    if (room.status?.code?.toUpperCase() === 'OCCUPIED' && room.tenant) {
       // Room 0: Primary tenant only (1/2 capacity)
       // Room 1: Primary + 1 roommate (2/2 capacity)
       // Room 2: Primary + 2 roommates (3/3 capacity)
@@ -197,7 +197,7 @@ const Rooms = () => {
       floor: room.floor?.toString() || '',
       rent: room.rent ? `₱${room.rent.toLocaleString()}` : '₱0',
       rentAmount: room.rent || 0,
-      status: room.status || 'vacant',
+      status: room.status || { code: 'VACANT', label: 'Vacant' },
 
       // Legacy single tenant fields (for backward compatibility)
       tenant: room.tenant?.name || null,
@@ -564,13 +564,13 @@ const Rooms = () => {
               <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
                 <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
               </svg>
-              <span className="font-medium">{allRooms.filter(r => !r.deleted && r.status === 'occupied').length} Occupied</span>
+              <span className="font-medium">{allRooms.filter(r => !r.deleted && r.status?.code?.toUpperCase() === 'OCCUPIED').length} Occupied</span>
             </div>
             <div className="flex items-center gap-2 px-3 py-1.5 bg-neutral-100 text-neutral-700 rounded-lg">
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
               </svg>
-              <span className="font-medium">{allRooms.filter(r => !r.deleted && r.status === 'vacant').length} Vacant</span>
+              <span className="font-medium">{allRooms.filter(r => !r.deleted && r.status?.code?.toUpperCase() === 'VACANT').length} Vacant</span>
             </div>
             <div className="flex items-center gap-2 px-3 py-1.5 bg-red-50 text-red-700 rounded-lg">
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -617,6 +617,29 @@ const Rooms = () => {
                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
               </svg>
               <p className="text-sm text-neutral-600">Loading rooms...</p>
+            </div>
+          </div>
+        ) : (roomsError || roomsData?.getRoomsByBuilding?.success === false) ? (
+          <div className="flex items-center justify-center py-12">
+            <div className="flex flex-col items-center gap-3 text-center max-w-md">
+              <svg className="w-16 h-16 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              </svg>
+              <div>
+                <p className="text-lg font-medium text-red-600 mb-1">Failed to Load Rooms</p>
+                <p className="text-sm text-red-500 mb-3 break-words">
+                  {roomsError?.message || roomsError?.graphQLErrors?.[0]?.message || roomsData?.getRoomsByBuilding?.message || 'An error occurred while fetching rooms'}
+                </p>
+                <button
+                  onClick={() => refetchRooms()}
+                  className="inline-flex items-center px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium transition-colors text-sm"
+                >
+                  <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                  </svg>
+                  Retry
+                </button>
+              </div>
             </div>
           </div>
         ) : filteredRooms.length === 0 ? (
@@ -723,7 +746,7 @@ const Rooms = () => {
                   </td>
                   {/* NEW: Occupancy Column */}
                   <td className="px-6 py-4 whitespace-nowrap">
-                    {room.status === 'occupied' ? (
+                    {room.status?.code?.toUpperCase() === 'OCCUPIED' ? (
                       <OccupancyIndicator
                         currentOccupancy={room.currentOccupancy || 0}
                         capacity={room.capacityNum || 1}
@@ -784,11 +807,11 @@ const Rooms = () => {
                       </span>
                     ) : (
                       <span className={`px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                        room.status === 'occupied'
+                        room.status?.code?.toUpperCase() === 'OCCUPIED'
                           ? 'bg-green-100 text-green-800'
                           : 'bg-neutral-100 text-neutral-800'
                       }`}>
-                        {room.status === 'occupied' ? 'Occupied' : 'Vacant'}
+                        {room.status?.label || (room.status?.code?.toUpperCase() === 'OCCUPIED' ? 'Occupied' : 'Vacant')}
                       </span>
                     )}
                   </td>
@@ -832,7 +855,7 @@ const Rooms = () => {
                                 Edit Room
                               </button>
 
-                              {room.status === 'occupied' ? (
+                              {room.status?.code?.toUpperCase() === 'OCCUPIED' ? (
                                 <>
                                   {/* View All Tenants (NEW for multi-tenant) */}
                                   {room.tenants?.length > 1 ? (
