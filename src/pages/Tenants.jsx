@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
+import { useQuery } from '@apollo/client';
 import DashboardLayout from '../components/DashboardLayout';
 import TenantWizard from '../components/TenantWizard';
+import { GET_ALL_PROPERTIES, GET_ALL_ROOMS } from '../lib/graphql-queries';
 
 const Tenants = () => {
   const [showAddModal, setShowAddModal] = useState(false);
@@ -12,6 +14,20 @@ const Tenants = () => {
   const [statusFilter, setStatusFilter] = useState('all'); // all, active, moved-out
   const [searchQuery, setSearchQuery] = useState('');
   const [openMenuId, setOpenMenuId] = useState(null);
+
+  // Fetch buildings from API
+  const { data: buildingsData, loading: buildingsLoading } = useQuery(GET_ALL_PROPERTIES, {
+    fetchPolicy: 'network-only',
+  });
+
+  const buildings = buildingsData?.getAllProperties?.properties || [];
+
+  // Fetch rooms from API
+  const { data: roomsData, loading: roomsLoading } = useQuery(GET_ALL_ROOMS, {
+    fetchPolicy: 'network-only',
+  });
+
+  const apiRooms = roomsData?.getAllRooms?.rooms || [];
 
   // Lock body scroll when modal is open
   useEffect(() => {
@@ -126,12 +142,15 @@ const Tenants = () => {
     name: '',
     email: '',
     phone: '',
+    phoneVerified: false,
     dateOfBirth: '',
     idNumber: '',
     emergencyContactName: '',
     emergencyContactPhone: '',
     building: '',
+    buildingId: '',
     room: '',
+    roomId: '',
     rent: '',
     moveInDate: '',
     securityDeposit: '',
@@ -141,8 +160,8 @@ const Tenants = () => {
     guarantorRelationship: '',
     guarantorEmail: '',
     guarantorPhone: '',
+    guarantorPhoneVerified: false,
     guarantorAddress: '',
-    guarantorIdNumber: '',
     notes: ''
   });
 
@@ -165,8 +184,11 @@ const Tenants = () => {
       name: formData.name,
       email: formData.email,
       phone: formData.phone,
+      phoneVerified: formData.phoneVerified,
       building: formData.building,
+      buildingId: formData.buildingId,
       room: selectedRoom ? selectedRoom.roomNumber : formData.room,
+      roomId: formData.roomId,
       rent: `₱${formData.rent}`,
       moveInDate: formData.moveInDate,
       moveOutDate: null,
@@ -185,8 +207,8 @@ const Tenants = () => {
       guarantorRelationship: formData.guarantorRelationship,
       guarantorEmail: formData.guarantorEmail,
       guarantorPhone: formData.guarantorPhone,
+      guarantorPhoneVerified: formData.guarantorPhoneVerified,
       guarantorAddress: formData.guarantorAddress,
-      guarantorIdNumber: formData.guarantorIdNumber,
       notes: formData.notes
     };
 
@@ -197,12 +219,15 @@ const Tenants = () => {
       name: '',
       email: '',
       phone: '',
+      phoneVerified: false,
       dateOfBirth: '',
       idNumber: '',
       emergencyContactName: '',
       emergencyContactPhone: '',
       building: '',
+      buildingId: '',
       room: '',
+      roomId: '',
       rent: '',
       moveInDate: '',
       securityDeposit: '',
@@ -212,8 +237,8 @@ const Tenants = () => {
       guarantorRelationship: '',
       guarantorEmail: '',
       guarantorPhone: '',
+      guarantorPhoneVerified: false,
       guarantorAddress: '',
-      guarantorIdNumber: '',
       notes: ''
     });
     setCurrentStep(1);
@@ -228,12 +253,15 @@ const Tenants = () => {
       name: '',
       email: '',
       phone: '',
+      phoneVerified: false,
       dateOfBirth: '',
       idNumber: '',
       emergencyContactName: '',
       emergencyContactPhone: '',
       building: '',
+      buildingId: '',
       room: '',
+      roomId: '',
       rent: '',
       moveInDate: '',
       securityDeposit: '',
@@ -243,8 +271,8 @@ const Tenants = () => {
       guarantorRelationship: '',
       guarantorEmail: '',
       guarantorPhone: '',
+      guarantorPhoneVerified: false,
       guarantorAddress: '',
-      guarantorIdNumber: '',
       notes: ''
     });
   };
@@ -256,12 +284,15 @@ const Tenants = () => {
       name: 'Carlos Rivera',
       email: 'carlos.rivera@email.com',
       phone: '+63 922 678 9012',
+      phoneVerified: true,
       dateOfBirth: '1990-05-15',
       idNumber: 'SSS-1234-5678-9012',
       emergencyContactName: 'Maria Rivera',
       emergencyContactPhone: '+63 917 111 2222',
       building: 'Building A',
+      buildingId: '',
       room: '2', // Room 102 in Building A
+      roomId: '',
       rent: '8500',
       moveInDate: today,
       securityDeposit: '8500',
@@ -271,8 +302,8 @@ const Tenants = () => {
       guarantorRelationship: 'Parent',
       guarantorEmail: 'roberto.santos@email.com',
       guarantorPhone: '+63 918 333 4444',
+      guarantorPhoneVerified: true,
       guarantorAddress: '456 Magsaysay Avenue, Quezon City, Metro Manila 1100',
-      guarantorIdNumber: 'UMID-9876-5432-1098',
       notes: 'Demo tenant data for testing purposes'
     });
   };
@@ -323,12 +354,15 @@ const Tenants = () => {
       name: tenant.name,
       email: tenant.email,
       phone: tenant.phone,
+      phoneVerified: tenant.phoneVerified || false,
       dateOfBirth: tenant.dateOfBirth || '',
       idNumber: tenant.idNumber || '',
       emergencyContactName: tenant.emergencyContactName || '',
       emergencyContactPhone: tenant.emergencyContactPhone || '',
       building: '',
+      buildingId: '',
       room: '',
+      roomId: '',
       rent: '',
       moveInDate: new Date().toISOString().split('T')[0],
       securityDeposit: '',
@@ -338,8 +372,8 @@ const Tenants = () => {
       guarantorRelationship: tenant.guarantorRelationship || '',
       guarantorEmail: tenant.guarantorEmail || '',
       guarantorPhone: tenant.guarantorPhone || '',
+      guarantorPhoneVerified: tenant.guarantorPhoneVerified || false,
       guarantorAddress: tenant.guarantorAddress || '',
-      guarantorIdNumber: tenant.guarantorIdNumber || '',
       notes: 'Returning tenant'
     });
     setShowReactivateModal(true);
@@ -809,7 +843,9 @@ const Tenants = () => {
                     currentStep={currentStep}
                     formData={formData}
                     setFormData={setFormData}
-                    availableRooms={availableRooms}
+                    buildings={buildings}
+                    buildingsLoading={buildingsLoading}
+                    availableRooms={apiRooms}
                     handleNext={handleNext}
                     handleBack={handleBack}
                     handleSubmit={handleSubmit}
@@ -1000,7 +1036,9 @@ const Tenants = () => {
                         currentStep={2}
                         formData={formData}
                         setFormData={setFormData}
-                        availableRooms={availableRooms}
+                        buildings={buildings}
+                        buildingsLoading={buildingsLoading}
+                        availableRooms={apiRooms}
                         handleNext={() => {}}
                         handleBack={() => {}}
                         handleSubmit={confirmReactivate}
