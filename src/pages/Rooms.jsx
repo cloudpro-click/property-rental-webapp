@@ -4,6 +4,9 @@ import toast from 'react-hot-toast';
 import DashboardLayout from '../components/DashboardLayout';
 import RoomWizard from '../components/RoomWizard';
 import ConfirmDialog from '../components/ConfirmDialog';
+import TenantTypeBadge from '../components/TenantTypeBadge';
+import OccupancyIndicator from '../components/OccupancyIndicator';
+import PromoteTenantModal from '../components/PromoteTenantModal';
 import { GET_ALL_AMENITIES, GET_ALL_PROPERTIES, GET_ROOMS_BY_BUILDING, CREATE_ROOM, UPDATE_ROOM, DELETE_ROOM } from '../lib/graphql-queries';
 
 const Rooms = () => {
@@ -20,6 +23,10 @@ const Rooms = () => {
   const [openMenuId, setOpenMenuId] = useState(null);
   const [buildingSearch, setBuildingSearch] = useState('');
   const [showBuildingDropdown, setShowBuildingDropdown] = useState(false);
+  const [showPromoteModal, setShowPromoteModal] = useState(false);
+  const [tenantToPromote, setTenantToPromote] = useState(null);
+  const [showAllTenantsModal, setShowAllTenantsModal] = useState(false);
+  const [roomForTenants, setRoomForTenants] = useState(null);
 
   // GraphQL Query - Fetch all amenities (lookup data - can be cached)
   const { data: amenitiesData, loading: amenitiesLoading } = useQuery(GET_ALL_AMENITIES, {
@@ -135,29 +142,86 @@ const Rooms = () => {
   });
 
   // Transform API rooms to match local structure
-  const allRooms = apiRooms.map(room => ({
-    id: room.room_id,
-    room_id: room.room_id,
-    building: room.building?.name || '',
-    buildingId: room.building_id,
-    roomNumber: room.roomNumber,
-    floor: room.floor?.toString() || '',
-    rent: room.rent ? `₱${room.rent.toLocaleString()}` : '₱0',
-    status: room.status || 'vacant',
-    tenant: room.tenant?.name || null,
-    tenantEmail: room.tenant?.email || null,
-    tenantPhone: room.tenant?.phone || null,
-    moveInDate: room.tenant?.moveInDate || null,
-    electricMeter: room.electricMeter || '',
-    capacity: room.capacity?.toString() || '',
-    size: room.size?.toString() || '',
-    amenities: room.amenities || '',
-    description: room.description || '',
-    hasSeparateMeter: room.hasSeparateMeter,
-    deleted: room.deleted || false,
-    deletedBy: room.audit?.deleted_by || null,
-    deletedDate: room.audit?.deleted_date || null
-  }));
+  const allRooms = apiRooms.map((room, index) => {
+    // MOCK DATA: Add multi-tenant data to demonstrate UI
+    // This will be replaced with real API data later
+    const capacity = parseInt(room.capacity) || 1;
+    let mockTenants = [];
+    let mockCurrentOccupancy = 0;
+
+    // Add mock tenants to some occupied rooms for demonstration
+    if (room.status === 'occupied' && room.tenant) {
+      // Room 0: Primary tenant only (1/2 capacity)
+      // Room 1: Primary + 1 roommate (2/2 capacity)
+      // Room 2: Primary + 2 roommates (3/3 capacity)
+      const shouldHaveRoommates = index % 3 === 1 || index % 3 === 2;
+      const roommateCount = index % 3 === 1 ? 1 : (index % 3 === 2 ? 2 : 0);
+
+      // Primary tenant (from existing API data)
+      mockTenants.push({
+        tenant_id: `tenant_${room.room_id}_primary`,
+        name: room.tenant.name,
+        email: room.tenant.email || `${room.tenant.name.toLowerCase().replace(' ', '.')}@email.com`,
+        phone: room.tenant.phone || '+639171234567',
+        isPrimary: true,
+        role: 'primary',
+        moveInDate: room.tenant.moveInDate || new Date().toISOString(),
+        status: 'active'
+      });
+
+      // Add roommates for demonstration
+      if (shouldHaveRoommates) {
+        for (let i = 0; i < roommateCount; i++) {
+          mockTenants.push({
+            tenant_id: `tenant_${room.room_id}_roommate_${i + 1}`,
+            name: `Roommate ${i + 1}`,
+            email: `roommate${i + 1}.${room.roomNumber}@email.com`,
+            phone: `+63917${Math.floor(1000000 + Math.random() * 9000000)}`,
+            isPrimary: false,
+            role: 'secondary',
+            moveInDate: new Date(Date.now() - (30 - i * 10) * 24 * 60 * 60 * 1000).toISOString(),
+            status: 'active'
+          });
+        }
+      }
+
+      mockCurrentOccupancy = mockTenants.length;
+    }
+
+    return {
+      id: room.room_id,
+      room_id: room.room_id,
+      building: room.building?.name || '',
+      buildingId: room.building_id,
+      roomNumber: room.roomNumber,
+      floor: room.floor?.toString() || '',
+      rent: room.rent ? `₱${room.rent.toLocaleString()}` : '₱0',
+      rentAmount: room.rent || 0,
+      status: room.status || 'vacant',
+
+      // Legacy single tenant fields (for backward compatibility)
+      tenant: room.tenant?.name || null,
+      tenantEmail: room.tenant?.email || null,
+      tenantPhone: room.tenant?.phone || null,
+      moveInDate: room.tenant?.moveInDate || null,
+
+      // NEW: Multi-tenant fields (MOCK DATA - will come from API later)
+      tenants: mockTenants,
+      primaryTenant: mockTenants.find(t => t.isPrimary) || null,
+      currentOccupancy: mockCurrentOccupancy,
+
+      electricMeter: room.electricMeter || '',
+      capacity: room.capacity?.toString() || '1',
+      capacityNum: parseInt(room.capacity) || 1,
+      size: room.size?.toString() || '',
+      amenities: room.amenities || '',
+      description: room.description || '',
+      hasSeparateMeter: room.hasSeparateMeter,
+      deleted: room.deleted || false,
+      deletedBy: room.audit?.deleted_by || null,
+      deletedDate: room.audit?.deleted_date || null
+    };
+  });
 
   // Calculate room count for the currently selected building only
   const currentBuildingRoomCount = React.useMemo(() => {
@@ -331,6 +395,30 @@ const Rooms = () => {
   const handleRemoveTenant = (room) => {
     setSelectedRoom(room);
     setShowRemoveTenantConfirm(true);
+  };
+
+  // NEW: Multi-tenant handlers
+  const handlePromoteTenant = (tenant, room) => {
+    setTenantToPromote({ tenant, room });
+    setShowPromoteModal(true);
+  };
+
+  const confirmPromoteTenant = async () => {
+    // TODO: Call GraphQL mutation when API is ready
+    toast.success(`${tenantToPromote.tenant.name} promoted to primary tenant!`);
+    setShowPromoteModal(false);
+    setTenantToPromote(null);
+    // For now, just show success - actual promotion will be implemented with API
+  };
+
+  const handleShowAllTenants = (room) => {
+    setRoomForTenants(room);
+    setShowAllTenantsModal(true);
+  };
+
+  const handleAddRoommate = (room) => {
+    toast.info(`"Add Roommate" feature will open TenantWizard with tenantType='roommate' and pre-selected room`);
+    // TODO: Open TenantWizard with tenantType='roommate' prop when API is ready
   };
 
   const confirmRemoveTenant = () => {
@@ -578,10 +666,13 @@ const Rooms = () => {
                     Capacity
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
+                    Occupancy
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
                     Rent
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
-                    Tenant
+                    Tenant(s)
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
                     Status
@@ -630,21 +721,58 @@ const Rooms = () => {
                       {room.capacity} {room.capacity === '1' ? 'person' : 'persons'}
                     </div>
                   </td>
+                  {/* NEW: Occupancy Column */}
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    {room.status === 'occupied' ? (
+                      <OccupancyIndicator
+                        currentOccupancy={room.currentOccupancy || 0}
+                        capacity={room.capacityNum || 1}
+                        showAdd={!room.deleted && room.currentOccupancy < room.capacityNum}
+                        onAddClick={() => handleAddRoommate(room)}
+                      />
+                    ) : (
+                      <span className="text-sm text-neutral-400">-</span>
+                    )}
+                  </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className={`text-sm font-semibold ${room.deleted ? 'text-neutral-400' : 'text-neutral-900'}`}>{room.rent}</div>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    {room.tenant ? (
-                      <button
-                        onClick={() => !room.deleted && handleViewTenant(room)}
-                        disabled={room.deleted}
-                        className={`text-sm font-medium flex items-center ${room.deleted ? 'text-neutral-400 cursor-not-allowed' : 'text-primary-600 hover:text-primary-900'}`}
-                      >
-                        <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                        </svg>
-                        {room.tenant}
-                      </button>
+                  {/* UPDATED: Tenant(s) Column - Multi-tenant display */}
+                  <td className="px-6 py-4">
+                    {room.tenants?.length > 0 ? (
+                      <div className="min-w-[200px]">
+                        {/* Primary Tenant */}
+                        {room.primaryTenant && (
+                          <button
+                            onClick={() => !room.deleted && handleViewTenant(room)}
+                            disabled={room.deleted}
+                            className={`text-sm font-medium flex items-center gap-2 mb-1 ${room.deleted ? 'text-neutral-400 cursor-not-allowed' : 'text-primary-600 hover:text-primary-900'}`}
+                          >
+                            <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                            </svg>
+                            <span className="truncate">{room.primaryTenant.name}</span>
+                            <TenantTypeBadge isPrimary={true} size="sm" />
+                          </button>
+                        )}
+
+                        {/* Roommates Count */}
+                        {room.tenants.length > 1 && (
+                          <button
+                            onClick={() => !room.deleted && handleShowAllTenants(room)}
+                            disabled={room.deleted}
+                            className={`text-xs flex items-center gap-1 ${room.deleted ? 'text-neutral-400 cursor-not-allowed' : 'text-neutral-600 hover:text-primary-600'}`}
+                          >
+                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                            </svg>
+                            <span>+{room.tenants.length - 1} roommate{room.tenants.length > 2 ? 's' : ''}</span>
+                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                            </svg>
+                          </button>
+                        )}
+                      </div>
                     ) : (
                       <span className="text-sm text-neutral-400">-</span>
                     )}
@@ -706,18 +834,53 @@ const Rooms = () => {
 
                               {room.status === 'occupied' ? (
                                 <>
-                                  <button
-                                    onClick={() => {
-                                      handleViewTenant(room);
-                                      setOpenMenuId(null);
-                                    }}
-                                    className="w-full px-4 py-2 text-left text-sm text-neutral-700 hover:bg-neutral-50 flex items-center"
-                                  >
-                                    <svg className="w-4 h-4 mr-2 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                                    </svg>
-                                    View Tenant
-                                  </button>
+                                  {/* View All Tenants (NEW for multi-tenant) */}
+                                  {room.tenants?.length > 1 ? (
+                                    <button
+                                      onClick={() => {
+                                        handleShowAllTenants(room);
+                                        setOpenMenuId(null);
+                                      }}
+                                      className="w-full px-4 py-2 text-left text-sm text-neutral-700 hover:bg-neutral-50 flex items-center justify-between"
+                                    >
+                                      <div className="flex items-center">
+                                        <svg className="w-4 h-4 mr-2 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                                        </svg>
+                                        View All Tenants
+                                      </div>
+                                      <span className="text-xs text-neutral-500">{room.tenants.length}</span>
+                                    </button>
+                                  ) : (
+                                    <button
+                                      onClick={() => {
+                                        handleViewTenant(room);
+                                        setOpenMenuId(null);
+                                      }}
+                                      className="w-full px-4 py-2 text-left text-sm text-neutral-700 hover:bg-neutral-50 flex items-center"
+                                    >
+                                      <svg className="w-4 h-4 mr-2 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                                      </svg>
+                                      View Tenant
+                                    </button>
+                                  )}
+
+                                  {/* Add Roommate (NEW - shown if capacity available) */}
+                                  {room.currentOccupancy < room.capacityNum && (
+                                    <button
+                                      onClick={() => {
+                                        handleAddRoommate(room);
+                                        setOpenMenuId(null);
+                                      }}
+                                      className="w-full px-4 py-2 text-left text-sm text-green-700 hover:bg-green-50 flex items-center"
+                                    >
+                                      <svg className="w-4 h-4 mr-2 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m0-3h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+                                      </svg>
+                                      Add Roommate
+                                    </button>
+                                  )}
 
                                   <button
                                     onClick={() => {
@@ -729,7 +892,7 @@ const Rooms = () => {
                                     <svg className="w-4 h-4 mr-2 text-accent-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7a4 4 0 11-8 0 4 4 0 018 0zM9 14a6 6 0 00-6 6v1h12v-1a6 6 0 00-6-6zM21 12h-6" />
                                     </svg>
-                                    Remove Tenant
+                                    Move Out Tenant...
                                   </button>
                                 </>
                               ) : (
@@ -1033,6 +1196,136 @@ const Rooms = () => {
         cancelText="Cancel"
         type="danger"
       />
+
+      {/* NEW: Promote Tenant Modal */}
+      <PromoteTenantModal
+        isOpen={showPromoteModal}
+        onClose={() => setShowPromoteModal(false)}
+        currentPrimary={tenantToPromote?.room?.primaryTenant}
+        tenantToPromote={tenantToPromote?.tenant}
+        rent={tenantToPromote?.room?.rentAmount}
+        onConfirm={confirmPromoteTenant}
+        loading={false}
+      />
+
+      {/* NEW: All Tenants Modal */}
+      {showAllTenantsModal && roomForTenants && (
+        <div className="fixed inset-0 z-50 overflow-y-auto">
+          {/* Backdrop */}
+          <div
+            className="fixed inset-0 bg-black bg-opacity-50 transition-opacity"
+            onClick={() => setShowAllTenantsModal(false)}
+          />
+
+          {/* Modal */}
+          <div className="flex min-h-full items-center justify-center p-4">
+            <div
+              className="relative bg-white rounded-lg shadow-xl max-w-2xl w-full"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Header */}
+              <div className="px-5 sm:px-6 py-4 border-b border-neutral-200 flex items-center justify-between">
+                <div>
+                  <h2 className="text-xl font-bold text-neutral-900">
+                    All Tenants - Room {roomForTenants.roomNumber}
+                  </h2>
+                  <p className="text-sm text-neutral-600 mt-1">
+                    {roomForTenants.building} • {roomForTenants.currentOccupancy}/{roomForTenants.capacityNum} occupied
+                  </p>
+                </div>
+                <button
+                  onClick={() => setShowAllTenantsModal(false)}
+                  className="p-2 hover:bg-neutral-100 rounded-lg transition-colors"
+                >
+                  <svg className="w-5 h-5 text-neutral-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+
+              {/* Content */}
+              <div className="p-5 sm:p-6 space-y-3 max-h-[60vh] overflow-y-auto">
+                {roomForTenants.tenants?.map((tenant, index) => (
+                  <div
+                    key={tenant.tenant_id}
+                    className="border border-neutral-200 rounded-lg p-4 hover:border-primary-300 transition-colors"
+                  >
+                    <div className="flex items-start justify-between mb-3">
+                      <div className="flex items-center gap-3">
+                        {/* Avatar */}
+                        <div className="w-12 h-12 bg-primary-100 rounded-full flex items-center justify-center">
+                          <span className="text-primary-700 font-bold text-lg">
+                            {tenant.name?.charAt(0).toUpperCase()}
+                          </span>
+                        </div>
+                        <div>
+                          <h3 className="font-semibold text-neutral-900">{tenant.name}</h3>
+                          <TenantTypeBadge isPrimary={tenant.isPrimary} size="sm" />
+                        </div>
+                      </div>
+
+                      {/* Actions for secondary tenants */}
+                      {!tenant.isPrimary && (
+                        <button
+                          onClick={() => {
+                            setShowAllTenantsModal(false);
+                            handlePromoteTenant(tenant, roomForTenants);
+                          }}
+                          className="text-xs text-primary-600 hover:text-primary-800 font-medium px-3 py-1.5 border border-primary-300 rounded-lg hover:bg-primary-50 transition-colors"
+                        >
+                          Promote to Primary
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Contact Details */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+                      <div className="flex items-center gap-2 text-neutral-600">
+                        <svg className="w-4 h-4 text-neutral-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                        </svg>
+                        <span className="truncate">{tenant.email}</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-neutral-600">
+                        <svg className="w-4 h-4 text-neutral-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                        </svg>
+                        <span>{tenant.phone}</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-neutral-600 sm:col-span-2">
+                        <svg className="w-4 h-4 text-neutral-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                        </svg>
+                        <span>Moved in: {new Date(tenant.moveInDate).toLocaleDateString()}</span>
+                      </div>
+                    </div>
+
+                    {/* Rent info for primary tenant */}
+                    {tenant.isPrimary && (
+                      <div className="mt-3 pt-3 border-t border-neutral-200">
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-neutral-600">Monthly Rent Responsibility:</span>
+                          <span className="font-semibold text-primary-600">{roomForTenants.rent}</span>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+
+              {/* Footer */}
+              <div className="px-5 sm:px-6 py-4 border-t border-neutral-200 flex justify-end">
+                <button
+                  onClick={() => setShowAllTenantsModal(false)}
+                  className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 font-medium transition-colors text-sm"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </DashboardLayout>
   );
 };

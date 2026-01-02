@@ -1,21 +1,21 @@
 import React, { useState } from 'react';
+import PhoneInput from './PhoneInput';
 
 const TenantWizard = ({
   currentStep,
   formData,
   setFormData,
-  buildings,
-  buildingsLoading,
-  availableRooms,
   handleNext,
   handleBack,
   handleSubmit,
   closeModal,
-  isEditing = false
+  isEditing = false,
+  existingTenants = []
 }) => {
   const totalSteps = 3;
   const [relationshipSearch, setRelationshipSearch] = useState('');
   const [showRelationshipDropdown, setShowRelationshipDropdown] = useState(false);
+  const [phoneCheckStatus, setPhoneCheckStatus] = useState(null); // null, 'available', 'taken'
 
   const relationshipOptions = [
     'Parent',
@@ -33,6 +33,25 @@ const TenantWizard = ({
         rel.toLowerCase().includes(relationshipSearch.toLowerCase())
       )
     : relationshipOptions;
+
+  // Check phone number uniqueness
+  const checkPhoneUniqueness = (phone) => {
+    if (!phone || phone.length < 10) {
+      setPhoneCheckStatus(null);
+      return;
+    }
+
+    // Check if phone exists in other tenants (excluding current tenant when editing)
+    const phoneExists = existingTenants.some(tenant => {
+      // When editing, exclude the current tenant from the check
+      if (isEditing && tenant.phone === formData.phone && tenant.id === formData.id) {
+        return false;
+      }
+      return tenant.phone === phone;
+    });
+
+    setPhoneCheckStatus(phoneExists ? 'taken' : 'available');
+  };
 
   return (
     <>
@@ -76,31 +95,58 @@ const TenantWizard = ({
               <label className="block text-sm font-medium text-neutral-700 mb-1.5">
                 Phone Number <span className="text-secondary-500">*</span>
               </label>
-              <div className="relative">
-                <input
-                  type="tel"
-                  required
-                  value={formData.phone}
-                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                  className="input-field pr-10"
-                  placeholder="+63 917 123 4567"
-                />
-                <button
-                  type="button"
-                  onClick={() => setFormData({ ...formData, phoneVerified: !formData.phoneVerified })}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 focus:outline-none"
-                  title={formData.phoneVerified ? "Verified" : "Not verified"}
-                >
-                  {formData.phoneVerified ? (
-                    <svg className="w-5 h-5 text-green-600" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.643.304 1.254.723 1.745a3.066 3.066 0 010 3.976 3.066 3.066 0 00-.723 1.745 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.723-1.745 3.066 3.066 0 010-3.976 3.066 3.066 0 00.723-1.745 3.066 3.066 0 012.812-2.812zm7.44 5.252a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                    </svg>
-                  ) : (
-                    <svg className="w-5 h-5 text-neutral-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                  )}
-                </button>
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <div className="flex-1">
+                    <PhoneInput
+                      value={formData.phone}
+                      onChange={(value) => {
+                        setFormData({ ...formData, phone: value });
+                        checkPhoneUniqueness(value);
+                      }}
+                      placeholder="917 123 4567"
+                    />
+                  </div>
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    {/* Phone uniqueness indicator */}
+                    {phoneCheckStatus === 'taken' && (
+                      <div className="flex items-center gap-1 text-xs text-red-600" title="Phone number already exists">
+                        <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                        </svg>
+                        <span className="hidden sm:inline">Taken</span>
+                      </div>
+                    )}
+                    {phoneCheckStatus === 'available' && !isEditing && (
+                      <div className="flex items-center gap-1 text-xs text-green-600" title="Phone number is available">
+                        <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                        </svg>
+                        <span className="hidden sm:inline">Available</span>
+                      </div>
+                    )}
+                    {/* Phone verification button */}
+                    <button
+                      type="button"
+                      onClick={() => setFormData({ ...formData, phoneVerified: !formData.phoneVerified })}
+                      className="focus:outline-none"
+                      title={formData.phoneVerified ? "Verified" : "Not verified"}
+                    >
+                      {formData.phoneVerified ? (
+                        <svg className="w-5 h-5 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.643.304 1.254.723 1.745a3.066 3.066 0 010 3.976 3.066 3.066 0 00-.723 1.745 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.723-1.745 3.066 3.066 0 010-3.976 3.066 3.066 0 00.723-1.745 3.066 3.066 0 012.812-2.812zm7.44 5.252a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                        </svg>
+                      ) : (
+                        <svg className="w-5 h-5 text-neutral-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                      )}
+                    </button>
+                  </div>
+                </div>
+                {phoneCheckStatus === 'taken' && (
+                  <p className="text-xs text-red-600">This phone number is already registered to another tenant</p>
+                )}
               </div>
             </div>
           </div>
@@ -152,202 +198,24 @@ const TenantWizard = ({
               <label className="block text-sm font-medium text-neutral-500 mb-1.5">
                 Emergency Contact Phone
               </label>
-              <input
-                type="tel"
-                value={formData.emergencyContactPhone}
-                onChange={(e) => setFormData({ ...formData, emergencyContactPhone: e.target.value })}
-                className="input-field"
-                placeholder="+63 917 123 4567"
+              <PhoneInput
+                value={formData.emergencyContactPhone || ''}
+                onChange={(value) => setFormData({ ...formData, emergencyContactPhone: value })}
+                placeholder="917 123 4567"
               />
             </div>
           </div>
         </div>
       )}
 
-      {/* Step 2: Room & Rent Details */}
+      {/* Step 2: Guardian Details */}
       {currentStep === 2 && (
         <div className="space-y-3 sm:space-y-4">
-          <h4 className="text-base sm:text-lg font-semibold text-neutral-900 mb-2 sm:mb-3">Room & Rent Details</h4>
-
-          {/* Building */}
-          <div>
-            <label className="block text-sm font-medium text-neutral-700 mb-1.5">
-              Building <span className="text-secondary-500">*</span>
-            </label>
-            <div className="relative">
-              <select
-                required
-                value={formData.buildingId}
-                onChange={(e) => {
-                  const selectedBuilding = buildings.find(b => b.building_id === e.target.value);
-                  setFormData({
-                    ...formData,
-                    buildingId: e.target.value,
-                    building: selectedBuilding?.name || '',
-                    room: '',
-                    roomId: ''
-                  });
-                }}
-                className="input-field pl-10"
-              >
-                <option value="">Select a building</option>
-                {buildingsLoading ? (
-                  <option disabled>Loading buildings...</option>
-                ) : (
-                  buildings.map((building) => (
-                    <option key={building.building_id} value={building.building_id}>
-                      {building.name}
-                    </option>
-                  ))
-                )}
-              </select>
-              {/* Building Icon */}
-              <div className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none">
-                <svg className="w-5 h-5 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                </svg>
-              </div>
-            </div>
-          </div>
-
-          {/* Room Number (Dropdown based on building) */}
-          <div>
-            <label className="block text-sm font-medium text-neutral-700 mb-1.5">
-              Room Number <span className="text-secondary-500">*</span>
-            </label>
-            <div className="relative">
-              <select
-                required
-                value={formData.roomId}
-                onChange={(e) => {
-                  const selectedRoom = availableRooms.find(r => r.room_id === e.target.value);
-                  setFormData({
-                    ...formData,
-                    roomId: e.target.value,
-                    room: selectedRoom?.roomNumber || '',
-                    rent: selectedRoom ? selectedRoom.rent.toString() : ''
-                  });
-                }}
-                className="input-field pl-10"
-                disabled={!formData.buildingId}
-              >
-                <option value="">
-                  {!formData.buildingId ? 'Select a building first' : 'Select a room'}
-                </option>
-                {availableRooms
-                  .filter(room => room.buildingId === formData.buildingId && room.status === 'vacant' && !room.deleted)
-                  .map(room => (
-                    <option key={room.room_id} value={room.room_id}>
-                      Room {room.roomNumber} - Floor {room.floor} (₱{parseFloat(room.rent).toLocaleString()}/month)
-                    </option>
-                  ))
-                }
-              </select>
-              {/* Door Icon */}
-              <div className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none">
-                <svg className="w-5 h-5 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
-                </svg>
-              </div>
-            </div>
-            {formData.buildingId && availableRooms.filter(r => r.buildingId === formData.buildingId && r.status === 'vacant' && !r.deleted).length === 0 && (
-              <p className="text-xs text-secondary-500 mt-1">No vacant rooms available in this building</p>
-            )}
-          </div>
-
-          {/* Monthly Rent */}
-          <div>
-            <label className="block text-sm font-medium text-neutral-700 mb-1.5">
-              Monthly Rent (₱) <span className="text-secondary-500">*</span>
-            </label>
-            <input
-              type="number"
-              required
-              min="0"
-              value={formData.rent}
-              onChange={(e) => setFormData({ ...formData, rent: e.target.value })}
-              className="input-field"
-              placeholder="8500"
-              readOnly={!!formData.room}
-            />
-            <p className="text-xs text-neutral-500 mt-1">
-              {formData.room ? 'Auto-filled from selected room' : 'Monthly rental amount'}
-            </p>
-          </div>
-
-          {/* Move-in Date and Security Deposit */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-            <div>
-              <label className="block text-sm font-medium text-neutral-700 mb-1.5">
-                Move-in Date <span className="text-secondary-500">*</span>
-              </label>
-              <input
-                type="date"
-                required
-                value={formData.moveInDate}
-                onChange={(e) => setFormData({ ...formData, moveInDate: e.target.value })}
-                className="input-field"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-neutral-500 mb-1.5">
-                Security Deposit (₱)
-              </label>
-              <input
-                type="number"
-                min="0"
-                value={formData.securityDeposit}
-                onChange={(e) => setFormData({ ...formData, securityDeposit: e.target.value })}
-                className="input-field"
-                placeholder="8500"
-              />
-            </div>
-          </div>
-
-          {/* Advance Rent and Contract Duration */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-            <div>
-              <label className="block text-sm font-medium text-neutral-500 mb-1.5">
-                Advance Rent (months)
-              </label>
-              <input
-                type="number"
-                min="0"
-                max="12"
-                value={formData.advanceRent}
-                onChange={(e) => setFormData({ ...formData, advanceRent: e.target.value })}
-                className="input-field"
-                placeholder="1"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-neutral-500 mb-1.5">
-                Contract Duration (months)
-              </label>
-              <input
-                type="number"
-                min="1"
-                max="120"
-                value={formData.contractDuration}
-                onChange={(e) => setFormData({ ...formData, contractDuration: e.target.value })}
-                className="input-field"
-                placeholder="12"
-              />
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Step 3: Guardian Details (Optional) */}
-      {currentStep === 3 && (
-        <div className="space-y-3 sm:space-y-4">
-          <h4 className="text-base sm:text-lg font-semibold text-neutral-500 mb-1.5 sm:mb-2">
-            Guardian Details (Optional)
+          <h4 className="text-base sm:text-lg font-semibold text-neutral-700 mb-1.5 sm:mb-2">
+            Guardian Details
           </h4>
           <p className="text-xs sm:text-sm text-neutral-600 mb-2 sm:mb-3">
-            Add guardian information if required. All fields in this section are optional.
+            Add guardian or emergency contact information.
           </p>
 
           {/* Guardian Name */}
@@ -506,6 +374,18 @@ const TenantWizard = ({
               placeholder="Complete address of guardian"
             ></textarea>
           </div>
+        </div>
+      )}
+
+      {/* Step 3: Additional Information (Optional) */}
+      {currentStep === 3 && (
+        <div className="space-y-3 sm:space-y-4">
+          <h4 className="text-base sm:text-lg font-semibold text-neutral-500 mb-1.5 sm:mb-2">
+            Additional Information (Optional)
+          </h4>
+          <p className="text-xs sm:text-sm text-neutral-600 mb-2 sm:mb-3">
+            Add any additional notes and attach ID documents if available.
+          </p>
 
           {/* Additional Notes */}
           <div>
@@ -517,8 +397,67 @@ const TenantWizard = ({
               onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
               className="input-field"
               rows="3"
-              placeholder="Any additional information about the tenant or agreement..."
+              placeholder="Any additional information about the tenant..."
             ></textarea>
+          </div>
+
+          {/* ID Attachment */}
+          <div>
+            <label className="block text-sm font-medium text-neutral-500 mb-1.5">
+              Government ID Attachment
+            </label>
+            <div className="border-2 border-dashed border-neutral-300 rounded-lg p-4 hover:border-primary-400 transition-colors">
+              <input
+                type="file"
+                id="idAttachment"
+                accept="image/*"
+                onChange={(e) => setFormData({ ...formData, idAttachment: e.target.files[0] })}
+                className="hidden"
+              />
+              <label
+                htmlFor="idAttachment"
+                className="cursor-pointer flex flex-col items-center gap-2"
+              >
+                {formData.idAttachment ? (
+                  <>
+                    <svg className="w-12 h-12 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <div className="text-center">
+                      <p className="text-sm font-medium text-neutral-900">{formData.idAttachment.name}</p>
+                      <p className="text-xs text-neutral-500 mt-1">
+                        {(formData.idAttachment.size / 1024).toFixed(2)} KB
+                      </p>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          setFormData({ ...formData, idAttachment: null });
+                        }}
+                        className="text-xs text-secondary-600 hover:text-secondary-800 mt-2 font-medium"
+                      >
+                        Remove file
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <svg className="w-12 h-12 text-neutral-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                    </svg>
+                    <div className="text-center">
+                      <p className="text-sm font-medium text-neutral-900">Click to upload ID</p>
+                      <p className="text-xs text-neutral-500 mt-1">
+                        PNG, JPG, or GIF (max 5MB)
+                      </p>
+                    </div>
+                  </>
+                )}
+              </label>
+            </div>
+            <p className="text-xs text-neutral-500 mt-2">
+              Upload a clear photo of government-issued ID (e.g., Driver's License, SSS, UMID)
+            </p>
           </div>
         </div>
       )}
@@ -558,10 +497,7 @@ const TenantWizard = ({
               handleNext();
             }}
             className="btn-primary disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base flex items-center gap-2"
-            disabled={
-              (currentStep === 1 && (!formData.name || !formData.email || !formData.phone)) ||
-              (currentStep === 2 && (!formData.building || !formData.room || !formData.rent || !formData.moveInDate))
-            }
+            disabled={currentStep === 1 && (!formData.name || !formData.email || !formData.phone || phoneCheckStatus === 'taken')}
           >
             <span className="hidden sm:inline">Next Step</span>
             <span className="sm:hidden">Next</span>
@@ -570,7 +506,11 @@ const TenantWizard = ({
             </svg>
           </button>
         ) : (
-          <button type="submit" className="btn-primary text-sm sm:text-base flex items-center justify-center gap-2">
+          <button
+            type="submit"
+            className="btn-primary disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base flex items-center justify-center gap-2"
+            disabled={phoneCheckStatus === 'taken'}
+          >
             {isEditing ? (
               <>
                 <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -582,10 +522,10 @@ const TenantWizard = ({
             ) : (
               <>
                 <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                 </svg>
-                <span className="hidden sm:inline">Add Tenant</span>
-                <span className="sm:hidden">Add</span>
+                <span className="hidden sm:inline">Register Tenant</span>
+                <span className="sm:hidden">Register</span>
               </>
             )}
           </button>
