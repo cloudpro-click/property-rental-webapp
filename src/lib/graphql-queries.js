@@ -488,3 +488,222 @@ export const DELETE_ROOM = gql`
   }
 `;
 
+// ============================================================================
+// Tenant Queries
+// ============================================================================
+
+export const GET_ALL_TENANTS = gql`
+  query GetAllTenants($page: PageInput) {
+    getAllTenants(page: $page) {
+      code
+      success
+      message
+      tenants {
+        tenant_id
+        first_name
+        family_name
+        name
+        email
+        phone
+        date_of_birth
+        id_number
+        emergency_contact_name
+        emergency_contact_phone
+        guarantor_first_name
+        guarantor_family_name
+        guarantor_relationship
+        guarantor_phone
+        guarantor_email
+        guarantor_address
+        notes
+        id_attachment
+        phone_verified
+        audit {
+          created_by
+          created_date
+          modified_by
+          modified_date
+        }
+      }
+      total_count
+      has_more
+    }
+  }
+`;
+
+export const GET_TENANT = gql`
+  query GetTenant($tenant_id: NonEmptyString!) {
+    getTenant(tenant_id: $tenant_id) {
+      code
+      success
+      message
+      tenant {
+        tenant_id
+        first_name
+        family_name
+        name
+        email
+        phone
+        date_of_birth
+        id_number
+        emergency_contact_name
+        emergency_contact_phone
+        guarantor_first_name
+        guarantor_family_name
+        guarantor_relationship
+        guarantor_phone
+        guarantor_email
+        guarantor_address
+        notes
+        id_attachment
+        phone_verified
+        audit {
+          created_by
+          created_date
+          modified_by
+          modified_date
+        }
+      }
+    }
+  }
+`;
+
+export const SEARCH_TENANT = gql`
+  query SearchTenant($search_string: NonEmptyString!) {
+    searchTenant(search_string: $search_string) {
+      code
+      success
+      message
+      tenants {
+        tenant_id
+        first_name
+        family_name
+        name
+        email
+        phone
+        phone_verified
+      }
+    }
+  }
+`;
+
+export const CHECK_PHONE_UNIQUENESS = gql`
+  query CheckPhoneUniqueness($phone: PhoneNumber!, $exclude_tenant_id: String) {
+    checkPhoneUniqueness(phone: $phone, exclude_tenant_id: $exclude_tenant_id) {
+      code
+      success
+      message
+      is_unique
+      existing_tenant_id
+    }
+  }
+`;
+
+export const CHECK_EMAIL_UNIQUENESS = gql`
+  query CheckEmailUniqueness($email: EmailAddress!, $exclude_tenant_id: String) {
+    checkEmailUniqueness(email: $email, exclude_tenant_id: $exclude_tenant_id) {
+      code
+      success
+      message
+      is_unique
+      existing_tenant_id
+    }
+  }
+`;
+
+// ============================================================================
+// Tenant Mutations
+// ============================================================================
+
+export const CREATE_TENANT = gql`
+  mutation CreateTenant($input: TenantInput!) {
+    createTenant(input: $input) {
+      code
+      success
+      message
+      tenant_id
+      tenant {
+        tenant_id
+        first_name
+        family_name
+        name
+        email
+        phone
+        date_of_birth
+        id_number
+        emergency_contact_name
+        emergency_contact_phone
+        guarantor_first_name
+        guarantor_family_name
+        guarantor_relationship
+        guarantor_phone
+        guarantor_email
+        guarantor_address
+        notes
+        id_attachment
+        phone_verified
+        audit {
+          created_by
+          created_date
+        }
+      }
+    }
+  }
+`;
+
+export const UPDATE_TENANT = gql`
+  mutation UpdateTenant($tenant_id: NonEmptyString!, $input: TenantInput!) {
+    updateTenant(tenant_id: $tenant_id, input: $input) {
+      code
+      success
+      message
+      tenant {
+        tenant_id
+        first_name
+        family_name
+        name
+        email
+        phone
+        date_of_birth
+        id_number
+        emergency_contact_name
+        emergency_contact_phone
+        guarantor_first_name
+        guarantor_family_name
+        guarantor_relationship
+        guarantor_phone
+        guarantor_email
+        guarantor_address
+        notes
+        id_attachment
+        phone_verified
+        audit {
+          modified_by
+          modified_date
+        }
+      }
+    }
+  }
+`;
+
+export const DELETE_TENANT = gql`
+  mutation DeleteTenant($tenant_id: NonEmptyString!) {
+    deleteTenant(tenant_id: $tenant_id) {
+      code
+      success
+      message
+    }
+  }
+`;
+
+export const TOGGLE_PHONE_VERIFICATION = gql`
+  mutation TogglePhoneVerification($tenant_id: NonEmptyString!) {
+    togglePhoneVerification(tenant_id: $tenant_id) {
+      code
+      success
+      message
+      phone_verified
+    }
+  }
+`;
+

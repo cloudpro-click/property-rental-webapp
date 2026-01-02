@@ -1,6 +1,16 @@
 import React, { useState, useEffect } from 'react';
+import { useQuery, useMutation } from '@apollo/client/react';
+import toast from 'react-hot-toast';
 import DashboardLayout from '../components/DashboardLayout';
 import TenantWizard from '../components/TenantWizard';
+import {
+  GET_ALL_TENANTS,
+  CREATE_TENANT,
+  UPDATE_TENANT,
+  DELETE_TENANT,
+  TOGGLE_PHONE_VERIFICATION,
+} from '../lib/graphql-queries';
+import { transformTenantToAPI, transformTenantFromAPI, transformTenantsFromAPI } from '../utils/tenantTransformers';
 
 const Tenants = () => {
   const [showAddModal, setShowAddModal] = useState(false);
@@ -15,6 +25,77 @@ const Tenants = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [openMenuId, setOpenMenuId] = useState(null);
   const [viewModalTab, setViewModalTab] = useState('personal'); // personal, guardian, lease, documents
+
+  // GraphQL queries and mutations
+  const { data: tenantsData, loading: tenantsLoading, error: tenantsError, refetch: refetchTenants } = useQuery(GET_ALL_TENANTS, {
+    variables: { page: { limit: 100, offset: 0 } },
+  });
+
+  const [createTenantMutation, { loading: createLoading }] = useMutation(CREATE_TENANT, {
+    onCompleted: (data) => {
+      if (data.createTenant.success) {
+        toast.success('Tenant registered successfully!');
+        refetchTenants();
+        closeModal();
+      } else {
+        toast.error(data.createTenant.message || 'Failed to register tenant');
+      }
+    },
+    onError: (error) => {
+      console.error('GraphQL error creating tenant:', error);
+      toast.error(error.message || 'Failed to register tenant');
+    },
+  });
+
+  const [updateTenantMutation, { loading: updateLoading }] = useMutation(UPDATE_TENANT, {
+    onCompleted: (data) => {
+      if (data.updateTenant.success) {
+        toast.success('Tenant updated successfully!');
+        refetchTenants();
+        setShowEditModal(false);
+      } else {
+        toast.error(data.updateTenant.message || 'Failed to update tenant');
+      }
+    },
+    onError: (error) => {
+      console.error('GraphQL error updating tenant:', error);
+      toast.error(error.message || 'Failed to update tenant');
+    },
+  });
+
+  const [deleteTenantMutation] = useMutation(DELETE_TENANT, {
+    onCompleted: (data) => {
+      if (data.deleteTenant.success) {
+        toast.success('Tenant deleted successfully!');
+        refetchTenants();
+      } else {
+        toast.error(data.deleteTenant.message || 'Failed to delete tenant');
+      }
+    },
+    onError: (error) => {
+      console.error('GraphQL error deleting tenant:', error);
+      toast.error(error.message || 'Failed to delete tenant');
+    },
+  });
+
+  const [togglePhoneVerificationMutation] = useMutation(TOGGLE_PHONE_VERIFICATION, {
+    onCompleted: (data) => {
+      if (data.togglePhoneVerification.success) {
+        console.log('Phone verification toggled successfully');
+        refetchTenants();
+      } else {
+        console.error('Failed to toggle phone verification:', data.togglePhoneVerification.message);
+      }
+    },
+    onError: (error) => {
+      console.error('GraphQL error toggling phone verification:', error);
+    },
+  });
+
+  // Transform API data to UI format
+  const tenants = tenantsData?.getAllTenants?.tenants
+    ? transformTenantsFromAPI(tenantsData.getAllTenants.tenants)
+    : [];
 
   // Lock body scroll when modal is open
   useEffect(() => {
@@ -44,86 +125,6 @@ const Tenants = () => {
     { id: '12', building: 'Building C', roomNumber: '201', floor: '2', rent: '₱7,000', status: 'vacant' },
   ]);
 
-  const [tenants, setTenants] = useState([
-    {
-      id: 1,
-      name: 'Maria Santos',
-      email: 'maria.santos@email.com',
-      phone: '+63 917 123 4567',
-      building: 'Building A',
-      room: '101',
-      rent: '₱8,500',
-      moveInDate: '2024-01-15',
-      moveOutDate: null,
-      status: 'active',
-      balance: '₱0',
-      rentalHistory: []
-    },
-    {
-      id: 2,
-      name: 'Jose Reyes',
-      email: 'jose.reyes@email.com',
-      phone: '+63 918 234 5678',
-      building: 'Building B',
-      room: '205',
-      rent: '₱7,200',
-      moveInDate: '2024-03-01',
-      moveOutDate: null,
-      status: 'active',
-      balance: '₱0',
-      rentalHistory: []
-    },
-    {
-      id: 3,
-      name: 'Ana Cruz',
-      email: 'ana.cruz@email.com',
-      phone: '+63 919 345 6789',
-      building: 'Building A',
-      room: '201',
-      rent: '₱9,000',
-      moveInDate: '2024-02-10',
-      moveOutDate: null,
-      status: 'active',
-      balance: '₱0',
-      rentalHistory: []
-    },
-    {
-      id: 4,
-      name: 'Pedro Garcia',
-      email: 'pedro.garcia@email.com',
-      phone: '+63 920 456 7890',
-      building: 'Building C',
-      room: '102',
-      rent: '₱6,800',
-      moveInDate: '2024-06-01',
-      moveOutDate: null,
-      status: 'active',
-      balance: '₱6,800',
-      rentalHistory: []
-    },
-    {
-      id: 5,
-      name: 'Linda Fernandez',
-      email: 'linda.fernandez@email.com',
-      phone: '+63 921 567 8901',
-      building: null,
-      room: null,
-      rent: null,
-      moveInDate: '2023-05-10',
-      moveOutDate: '2024-08-15',
-      status: 'moved-out',
-      balance: '₱0',
-      rentalHistory: [
-        {
-          building: 'Building B',
-          room: '206',
-          rent: '₱7,200',
-          moveInDate: '2023-05-10',
-          moveOutDate: '2024-08-15'
-        }
-      ]
-    },
-  ]);
 
   const [formData, setFormData] = useState({
     firstName: '',
@@ -156,66 +157,23 @@ const Tenants = () => {
     setCurrentStep(currentStep - 1);
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
 
-    const newTenant = {
-      id: tenants.length + 1,
-      name: formData.name,
-      email: formData.email,
-      phone: formData.phone,
-      phoneVerified: formData.phoneVerified,
-      building: null, // Will be assigned via lease
-      buildingId: null,
-      room: null,
-      roomId: null,
-      rent: null,
-      moveInDate: null,
-      moveOutDate: null,
-      status: 'available', // New status for tenants without lease
-      balance: '₱0',
-      rentalHistory: [],
-      // Additional fields stored but not displayed in table
-      dateOfBirth: formData.dateOfBirth,
-      idNumber: formData.idNumber,
-      emergencyContactName: formData.emergencyContactName,
-      emergencyContactPhone: formData.emergencyContactPhone,
-      guarantorName: formData.guarantorName,
-      guarantorRelationship: formData.guarantorRelationship,
-      guarantorEmail: formData.guarantorEmail,
-      guarantorPhone: formData.guarantorPhone,
-      guarantorPhoneVerified: formData.guarantorPhoneVerified,
-      guarantorAddress: formData.guarantorAddress,
-      notes: formData.notes
-    };
+    // Transform UI data to API format
+    const tenantInput = transformTenantToAPI(formData);
 
-    setTenants([...tenants, newTenant]);
-
-    // Reset form
-    setFormData({
-      firstName: '',
-      lastName: '',
-      name: '',
-      email: '',
-      phone: '',
-      phoneVerified: false,
-      dateOfBirth: '',
-      idNumber: '',
-      emergencyContactName: '',
-      emergencyContactPhone: '',
-      guarantorFirstName: '',
-      guarantorLastName: '',
-      guarantorName: '',
-      guarantorRelationship: '',
-      guarantorEmail: '',
-      guarantorPhone: '',
-      guarantorPhoneVerified: false,
-      guarantorAddress: '',
-      notes: '',
-      idAttachment: null
-    });
-    setCurrentStep(1);
-    setShowAddModal(false);
+    try {
+      await createTenantMutation({
+        variables: {
+          input: tenantInput,
+        },
+      });
+      // On success, closeModal will be called by the mutation's onCompleted callback
+    } catch (error) {
+      console.error('Error creating tenant:', error);
+      // Error is already handled in the mutation's onError callback
+    }
   };
 
   const closeModal = () => {
@@ -502,6 +460,34 @@ const Tenants = () => {
         </button>
       </div>
 
+      {/* Loading State */}
+      {tenantsLoading && (
+        <div className="flex items-center justify-center py-12">
+          <div className="text-center">
+            <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
+            <p className="mt-4 text-neutral-600">Loading tenants...</p>
+          </div>
+        </div>
+      )}
+
+      {/* Error State */}
+      {tenantsError && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+          <div className="flex items-start">
+            <svg className="w-5 h-5 text-red-600 mt-0.5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <div className="flex-1">
+              <h3 className="text-sm font-medium text-red-800">Error loading tenants</h3>
+              <p className="mt-1 text-sm text-red-700">{tenantsError.message}</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Main Content - Only show if not loading */}
+      {!tenantsLoading && (
+        <>
       {/* Search Bar */}
       <div className="mb-4">
         <div className="relative">
@@ -897,6 +883,7 @@ const Tenants = () => {
                     closeModal={closeModal}
                     isEditing={false}
                     existingTenants={tenants}
+                    isSubmitting={createLoading}
                   />
                 </div>
               </form>
@@ -1614,12 +1601,15 @@ const Tenants = () => {
                     }}
                     isEditing={true}
                     existingTenants={tenants}
+                    isSubmitting={updateLoading}
                   />
                 </div>
               </form>
             </div>
           </div>
         </div>
+      )}
+        </>
       )}
     </DashboardLayout>
   );

@@ -10,7 +10,8 @@ const TenantWizard = ({
   handleSubmit,
   closeModal,
   isEditing = false,
-  existingTenants = []
+  existingTenants = [],
+  isSubmitting = false
 }) => {
   const totalSteps = 3;
   const [relationshipSearch, setRelationshipSearch] = useState('');
@@ -125,59 +126,52 @@ const TenantWizard = ({
               <label className="block text-sm font-medium text-neutral-700 mb-1.5">
                 Phone Number <span className="text-secondary-500">*</span>
               </label>
-              <div className="space-y-2">
-                <div className="flex items-center gap-2">
-                  <div className="flex-1">
-                    <PhoneInput
-                      value={formData.phone}
-                      onChange={(value) => {
-                        setFormData({ ...formData, phone: value });
-                        checkPhoneUniqueness(value);
-                      }}
-                      placeholder="917 123 4567"
-                    />
-                  </div>
-                  <div className="flex items-center gap-2 flex-shrink-0">
-                    {/* Phone uniqueness indicator */}
-                    {phoneCheckStatus === 'taken' && (
-                      <div className="flex items-center gap-1 text-xs text-red-600" title="Phone number already exists">
-                        <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-                        </svg>
-                        <span className="hidden sm:inline">Taken</span>
-                      </div>
+              <div className="relative">
+                <PhoneInput
+                  value={formData.phone}
+                  onChange={(value) => {
+                    setFormData({ ...formData, phone: value });
+                    checkPhoneUniqueness(value);
+                  }}
+                  placeholder="917 123 4567"
+                />
+                {/* Phone verification button - positioned absolute inside input */}
+                <div className="absolute right-2 top-1/2 -translate-y-1/2">
+                  <button
+                    type="button"
+                    onClick={() => setFormData({ ...formData, phoneVerified: !formData.phoneVerified })}
+                    className="focus:outline-none"
+                    title={formData.phoneVerified ? "Verified" : "Not verified"}
+                  >
+                    {formData.phoneVerified ? (
+                      <svg className="w-5 h-5 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.643.304 1.254.723 1.745a3.066 3.066 0 010 3.976 3.066 3.066 0 00-.723 1.745 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.723-1.745 3.066 3.066 0 010-3.976 3.066 3.066 0 00.723-1.745 3.066 3.066 0 012.812-2.812zm7.44 5.252a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                      </svg>
+                    ) : (
+                      <svg className="w-5 h-5 text-neutral-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
                     )}
-                    {phoneCheckStatus === 'available' && !isEditing && (
-                      <div className="flex items-center gap-1 text-xs text-green-600" title="Phone number is available">
-                        <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                        </svg>
-                        <span className="hidden sm:inline">Available</span>
-                      </div>
-                    )}
-                    {/* Phone verification button */}
-                    <button
-                      type="button"
-                      onClick={() => setFormData({ ...formData, phoneVerified: !formData.phoneVerified })}
-                      className="focus:outline-none"
-                      title={formData.phoneVerified ? "Verified" : "Not verified"}
-                    >
-                      {formData.phoneVerified ? (
-                        <svg className="w-5 h-5 text-green-600" fill="currentColor" viewBox="0 0 20 20">
-                          <path fillRule="evenodd" d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.643.304 1.254.723 1.745a3.066 3.066 0 010 3.976 3.066 3.066 0 00-.723 1.745 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.723-1.745 3.066 3.066 0 010-3.976 3.066 3.066 0 00.723-1.745 3.066 3.066 0 012.812-2.812zm7.44 5.252a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                        </svg>
-                      ) : (
-                        <svg className="w-5 h-5 text-neutral-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                      )}
-                    </button>
-                  </div>
+                  </button>
                 </div>
-                {phoneCheckStatus === 'taken' && (
-                  <p className="text-xs text-red-600">This phone number is already registered to another tenant</p>
-                )}
               </div>
+              {/* Validation status below input */}
+              {phoneCheckStatus === 'taken' && (
+                <div className="flex items-center gap-1.5 mt-1.5 text-red-600">
+                  <svg className="w-4 h-4 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                  </svg>
+                  <p className="text-xs font-medium">This phone number is already registered</p>
+                </div>
+              )}
+              {phoneCheckStatus === 'available' && !isEditing && (
+                <div className="flex items-center gap-1.5 mt-1.5 text-green-600">
+                  <svg className="w-4 h-4 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                  </svg>
+                  <p className="text-xs font-medium">Available</p>
+                </div>
+              )}
             </div>
           </div>
 
@@ -394,19 +388,19 @@ const TenantWizard = ({
               <label className="block text-sm font-medium text-neutral-700 mb-1.5">
                 Guardian Phone <span className="text-secondary-500">*</span>
               </label>
-              <div className="relative">
-                <input
-                  type="tel"
-                  value={formData.guarantorPhone}
-                  onChange={(e) => setFormData({ ...formData, guarantorPhone: e.target.value })}
-                  className="input-field pr-10"
-                  placeholder="+63 917 123 4567"
-                  required
-                />
+              <div className="flex items-center gap-2">
+                <div className="flex-1">
+                  <PhoneInput
+                    value={formData.guarantorPhone || ''}
+                    onChange={(value) => setFormData({ ...formData, guarantorPhone: value })}
+                    placeholder="917 123 4567"
+                  />
+                </div>
+                {/* Phone verification button */}
                 <button
                   type="button"
                   onClick={() => setFormData({ ...formData, guarantorPhoneVerified: !formData.guarantorPhoneVerified })}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 focus:outline-none"
+                  className="focus:outline-none flex-shrink-0"
                   title={formData.guarantorPhoneVerified ? "Verified" : "Not verified"}
                 >
                   {formData.guarantorPhoneVerified ? (
@@ -574,9 +568,18 @@ const TenantWizard = ({
           <button
             type="submit"
             className="btn-primary disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base flex items-center justify-center gap-2"
-            disabled={phoneCheckStatus === 'taken'}
+            disabled={phoneCheckStatus === 'taken' || isSubmitting}
           >
-            {isEditing ? (
+            {isSubmitting ? (
+              <>
+                <svg className="animate-spin h-4 w-4 sm:h-5 sm:w-5" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                <span className="hidden sm:inline">{isEditing ? 'Updating...' : 'Submitting...'}</span>
+                <span className="sm:hidden">{isEditing ? 'Updating...' : 'Submitting...'}</span>
+              </>
+            ) : isEditing ? (
               <>
                 <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
