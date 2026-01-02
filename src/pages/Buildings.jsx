@@ -548,6 +548,7 @@ const Buildings = () => {
                     handleSubmit={handleSubmit}
                     closeModal={closeModal}
                     isEditing={!!editingBuilding}
+                    isSubmitting={createLoading || updateLoading}
                     fillDemoData={fillDemoData}
                     initialBuilding={editingBuilding}
                   />

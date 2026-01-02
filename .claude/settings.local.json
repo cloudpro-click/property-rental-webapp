@@ -37,7 +37,12 @@
       "Bash(yarn dev)",
       "Bash(yarn install)",
       "Bash(del yarn.lock)",
-      "Bash(git -C \"d:\\\\Projects\\\\property rental\\\\property-rental-webapp\" status)"
+      "Bash(git -C \"d:\\\\Projects\\\\property rental\\\\property-rental-webapp\" status)",
+      "Bash(git push:*)",
+      "Bash(git -C \"d:\\\\Projects\\\\property rental\\\\property-rental-webapp\" diff src/pages/Rooms.jsx)",
+      "Bash(git -C \"d:\\\\Projects\\\\property rental\\\\property-rental-webapp\" diff src/lib/graphql-queries.js)",
+      "Bash(git -C \"d:\\\\Projects\\\\property rental\\\\property-rental-webapp\" log --oneline -5)",
+      "Bash(git -C \"d:\\\\Projects\\\\property rental\\\\property-rental-webapp\" push)"
     ]
   }
 }
