@@ -725,3 +725,324 @@ export const TOGGLE_PHONE_VERIFICATION = gql`
   }
 `;
 
+// ============================================================================
+// Lease Queries
+// ============================================================================
+
+export const GET_ALL_LEASES = gql`
+  query GetAllLeases($page: PageInput, $filter: LeaseFilter) {
+    getAllLeases(page: $page, filter: $filter) {
+      code
+      success
+      message
+      leases {
+        lease_id
+        room_id
+        room {
+          room_id
+          roomNumber
+          floor
+          capacity
+          rent
+        }
+        building_id
+        building {
+          building_id
+          name
+        }
+        tenant_ids
+        tenants {
+          tenant_id
+          first_name
+          family_name
+          email
+          phone
+        }
+        primary_tenant_id
+        primaryTenant {
+          tenant_id
+          first_name
+          family_name
+          email
+          phone
+        }
+        start_date
+        end_date
+        is_open_ended
+        monthly_rent
+        move_in_date
+        includes_water
+        includes_electric
+        notes
+        status {
+          code
+          label
+          description
+        }
+        termination_date
+        termination_reason
+        audit {
+          created_by
+          created_date
+          modified_by
+          modified_date
+        }
+      }
+    }
+  }
+`;
+
+export const GET_LEASE = gql`
+  query GetLease($lease_id: NonEmptyString!) {
+    getLease(lease_id: $lease_id) {
+      code
+      success
+      message
+      lease {
+        lease_id
+        room_id
+        room {
+          room_id
+          roomNumber
+          floor
+          capacity
+          rent
+        }
+        building_id
+        building {
+          building_id
+          name
+        }
+        tenant_ids
+        tenants {
+          tenant_id
+          first_name
+          family_name
+          email
+          phone
+        }
+        primary_tenant_id
+        primaryTenant {
+          tenant_id
+          first_name
+          family_name
+          email
+          phone
+        }
+        start_date
+        end_date
+        is_open_ended
+        monthly_rent
+        move_in_date
+        includes_water
+        includes_electric
+        notes
+        status {
+          code
+          label
+          description
+        }
+        termination_date
+        termination_reason
+        audit {
+          created_by
+          created_date
+          modified_by
+          modified_date
+        }
+      }
+    }
+  }
+`;
+
+export const GET_LEASES_BY_BUILDING = gql`
+  query GetLeasesByBuilding($building_id: NonEmptyString!, $page: PageInput) {
+    getLeasesByBuilding(building_id: $building_id, page: $page) {
+      code
+      success
+      message
+      leases {
+        lease_id
+        room_id
+        room {
+          room_id
+          roomNumber
+          floor
+        }
+        building_id
+        tenant_ids
+        tenants {
+          tenant_id
+          first_name
+          family_name
+        }
+        primary_tenant_id
+        primaryTenant {
+          tenant_id
+          first_name
+          family_name
+        }
+        start_date
+        end_date
+        is_open_ended
+        monthly_rent
+        move_in_date
+        status {
+          code
+          label
+        }
+      }
+    }
+  }
+`;
+
+export const GET_LEASES_BY_ROOM = gql`
+  query GetLeasesByRoom($room_id: NonEmptyString!) {
+    getLeasesByRoom(room_id: $room_id) {
+      code
+      success
+      message
+      leases {
+        lease_id
+        tenant_ids
+        tenants {
+          tenant_id
+          first_name
+          family_name
+        }
+        primary_tenant_id
+        start_date
+        end_date
+        is_open_ended
+        monthly_rent
+        status {
+          code
+          label
+        }
+      }
+    }
+  }
+`;
+
+export const GET_LEASES_BY_TENANT = gql`
+  query GetLeasesByTenant($tenant_id: NonEmptyString!) {
+    getLeasesByTenant(tenant_id: $tenant_id) {
+      code
+      success
+      message
+      leases {
+        lease_id
+        room_id
+        room {
+          room_id
+          roomNumber
+        }
+        building_id
+        building {
+          building_id
+          name
+        }
+        start_date
+        end_date
+        is_open_ended
+        monthly_rent
+        status {
+          code
+          label
+        }
+      }
+    }
+  }
+`;
+
+// ============================================================================
+// Lease Mutations
+// ============================================================================
+
+export const CREATE_LEASE = gql`
+  mutation CreateLease($input: LeaseInput!) {
+    createLease(input: $input) {
+      code
+      success
+      message
+      lease {
+        lease_id
+        room_id
+        building_id
+        tenant_ids
+        primary_tenant_id
+        start_date
+        end_date
+        is_open_ended
+        monthly_rent
+        move_in_date
+        includes_water
+        includes_electric
+        notes
+        status {
+          code
+          label
+        }
+      }
+    }
+  }
+`;
+
+export const UPDATE_LEASE = gql`
+  mutation UpdateLease($lease_id: NonEmptyString!, $input: LeaseInput!) {
+    updateLease(lease_id: $lease_id, input: $input) {
+      code
+      success
+      message
+      lease {
+        lease_id
+        room_id
+        building_id
+        tenant_ids
+        primary_tenant_id
+        start_date
+        end_date
+        is_open_ended
+        monthly_rent
+        move_in_date
+        includes_water
+        includes_electric
+        notes
+        status {
+          code
+          label
+        }
+      }
+    }
+  }
+`;
+
+export const TERMINATE_LEASE = gql`
+  mutation TerminateLease($lease_id: NonEmptyString!, $input: TerminateLeaseInput!) {
+    terminateLease(lease_id: $lease_id, input: $input) {
+      code
+      success
+      message
+      lease {
+        lease_id
+        status {
+          code
+          label
+        }
+        termination_date
+        termination_reason
+      }
+    }
+  }
+`;
+
+export const DELETE_LEASE = gql`
+  mutation DeleteLease($lease_id: NonEmptyString!) {
+    deleteLease(lease_id: $lease_id) {
+      code
+      success
+      message
+    }
+  }
+`;
+

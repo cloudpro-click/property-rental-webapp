@@ -52,7 +52,8 @@
       "Bash(git -C \"d:\\\\Projects\\\\property rental\\\\property-rental-webapp\" log --oneline -3)",
       "Bash(cat:*)",
       "Bash(git -C \"d:\\\\Projects\\\\property rental\\\\property-rental-webapp\" add src/components/TenantWizard.jsx src/pages/Tenants.jsx src/lib/graphql-queries.js src/utils/)",
-      "Bash(git -C \"d:\\\\Projects\\\\property rental\\\\property-rental-webapp\" commit -m \"$\\(cat <<''EOF''\nfeat: Integrate Tenants with GraphQL API and add loading states\n\n- Connect tenant CRUD operations to GraphQL API with data transformers\n- Add toast notifications and loading spinners for all mutations\n- Fix phone validation UI to prevent mobile layout breakage\n\n🤖 Generated with [Claude Code]\\(https://claude.com/claude-code\\)\n\nCo-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>\nEOF\n\\)\")"
+      "Bash(git -C \"d:\\\\Projects\\\\property rental\\\\property-rental-webapp\" commit -m \"$\\(cat <<''EOF''\nfeat: Integrate Tenants with GraphQL API and add loading states\n\n- Connect tenant CRUD operations to GraphQL API with data transformers\n- Add toast notifications and loading spinners for all mutations\n- Fix phone validation UI to prevent mobile layout breakage\n\n🤖 Generated with [Claude Code]\\(https://claude.com/claude-code\\)\n\nCo-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "Bash(tree:*)"
     ]
   }
 }

@@ -1,7 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
+import { useQuery, useMutation } from '@apollo/client/react';
 import toast from 'react-hot-toast';
 import DashboardLayout from '../components/DashboardLayout';
 import LeaseWizard from '../components/LeaseWizard';
+import { GET_ALL_LEASES, CREATE_LEASE, TERMINATE_LEASE } from '../lib/graphql-queries';
 
 const Leases = () => {
   const [statusFilter, setStatusFilter] = useState('all'); // all, active, expired, closed
@@ -34,211 +36,106 @@ const Leases = () => {
     notes: '',
     isAddingRoommate: false
   });
+  const [terminationReason, setTerminationReason] = useState('');
 
-  // Mock lease data
-  const mockLeases = [
-    {
-      lease_id: 'LEASE001',
-      room_id: 'ROOM001',
-      building_id: 'BLDG001',
-      building_name: 'Sunshine Apartments',
-      room_number: '101',
-      floor: 1,
-      lease_start_date: '2024-01-15',
-      lease_end_date: '2024-07-15',
-      monthly_rent: 8500,
-      status: 'active',
-      tenants: [
-        {
-          tenant_id: 'TEN001',
-          first_name: 'Juan',
-          last_name: 'Dela Cruz',
-          name: 'Juan Dela Cruz',
-          email: 'juan.delacruz@email.com',
-          phone: '+639171234567',
-          role: 'primary',
-          move_in_date: '2024-01-15',
-          move_out_date: null,
-          status: 'active'
-        },
-        {
-          tenant_id: 'TEN002',
-          first_name: 'Maria',
-          last_name: 'Santos',
-          name: 'Maria Santos',
-          email: 'maria.santos@email.com',
-          phone: '+639187654321',
-          role: 'secondary',
-          move_in_date: '2024-02-01',
-          move_out_date: null,
-          status: 'active'
-        }
-      ],
-      created_date: '2024-01-10T08:00:00Z',
-      created_by: 'admin@property.com'
-    },
-    {
-      lease_id: 'LEASE002',
-      room_id: 'ROOM002',
-      building_id: 'BLDG001',
-      building_name: 'Sunshine Apartments',
-      room_number: '203',
-      floor: 2,
-      lease_start_date: '2024-02-01',
-      lease_end_date: null, // Open lease
-      monthly_rent: 9500,
-      status: 'active',
-      tenants: [
-        {
-          tenant_id: 'TEN003',
-          first_name: 'Carlos',
-          last_name: 'Rivera',
-          name: 'Carlos Rivera',
-          email: 'carlos.rivera@email.com',
-          phone: '+639226789012',
-          role: 'primary',
-          move_in_date: '2024-02-01',
-          move_out_date: null,
-          status: 'active'
-        }
-      ],
-      created_date: '2024-01-25T10:30:00Z',
-      created_by: 'admin@property.com'
-    },
-    {
-      lease_id: 'LEASE003',
-      room_id: 'ROOM003',
-      building_id: 'BLDG002',
-      building_name: 'Moonlight Residences',
-      room_number: '305',
-      floor: 3,
-      lease_start_date: '2023-12-01',
-      lease_end_date: '2024-12-01',
-      monthly_rent: 12000,
-      status: 'active',
-      tenants: [
-        {
-          tenant_id: 'TEN004',
-          first_name: 'Ana',
-          last_name: 'Garcia',
-          name: 'Ana Garcia',
-          email: 'ana.garcia@email.com',
-          phone: '+639171112222',
-          role: 'primary',
-          move_in_date: '2023-12-01',
-          move_out_date: null,
-          status: 'active'
-        },
-        {
-          tenant_id: 'TEN005',
-          first_name: 'Pedro',
-          last_name: 'Reyes',
-          name: 'Pedro Reyes',
-          email: 'pedro.reyes@email.com',
-          phone: '+639183334444',
-          role: 'secondary',
-          move_in_date: '2024-01-10',
-          move_out_date: null,
-          status: 'active'
-        },
-        {
-          tenant_id: 'TEN006',
-          first_name: 'Lisa',
-          last_name: 'Torres',
-          name: 'Lisa Torres',
-          email: 'lisa.torres@email.com',
-          phone: '+639195556666',
-          role: 'secondary',
-          move_in_date: '2024-03-01',
-          move_out_date: null,
-          status: 'active'
-        }
-      ],
-      created_date: '2023-11-20T14:00:00Z',
-      created_by: 'admin@property.com'
-    },
-    {
-      lease_id: 'LEASE004',
-      room_id: 'ROOM004',
-      building_id: 'BLDG001',
-      building_name: 'Sunshine Apartments',
-      room_number: '105',
-      floor: 1,
-      lease_start_date: '2023-06-01',
-      lease_end_date: '2024-01-01',
-      monthly_rent: 7500,
-      status: 'expired',
-      tenants: [
-        {
-          tenant_id: 'TEN007',
-          first_name: 'Roberto',
-          last_name: 'Mendoza',
-          name: 'Roberto Mendoza',
-          email: 'roberto.mendoza@email.com',
-          phone: '+639207778888',
-          role: 'primary',
-          move_in_date: '2023-06-01',
-          move_out_date: '2024-01-01',
-          status: 'moved_out'
-        }
-      ],
-      created_date: '2023-05-25T09:00:00Z',
-      created_by: 'admin@property.com'
-    },
-    {
-      lease_id: 'LEASE005',
-      room_id: 'ROOM005',
-      building_id: 'BLDG002',
-      building_name: 'Moonlight Residences',
-      room_number: '102',
-      floor: 1,
-      lease_start_date: '2024-03-01',
-      lease_end_date: '2024-09-01',
-      monthly_rent: 10500,
-      status: 'closed',
-      tenants: [
-        {
-          tenant_id: 'TEN008',
-          first_name: 'Elena',
-          last_name: 'Cruz',
-          name: 'Elena Cruz',
-          email: 'elena.cruz@email.com',
-          phone: '+639219990000',
-          role: 'primary',
-          move_in_date: '2024-03-01',
-          move_out_date: '2024-05-15',
-          status: 'moved_out'
-        }
-      ],
-      termination_date: '2024-05-15',
-      created_date: '2024-02-20T11:00:00Z',
-      created_by: 'admin@property.com'
-    }
-  ];
-
-  // Note: Properties, Rooms, and Tenants are now fetched directly by LeaseWizard component using GraphQL queries
-
-  // Filter leases
-  const filteredLeases = mockLeases.filter(lease => {
-    const matchesStatus = statusFilter === 'all' || lease.status === statusFilter;
-    const matchesSearch = searchQuery === '' ||
-      lease.building_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      lease.room_number.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      lease.tenants.some(t => t.name.toLowerCase().includes(searchQuery.toLowerCase())) ||
-      lease.lease_id.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchesStatus && matchesSearch;
+  // GraphQL Query for Leases
+  const { data: leasesData, loading: leasesLoading, error: leasesError, refetch: refetchLeases } = useQuery(GET_ALL_LEASES, {
+    variables: { page: { limit: 100, offset: 0 } }
   });
 
+  // GraphQL Mutations
+  const [createLease] = useMutation(CREATE_LEASE, {
+    onCompleted: (data) => {
+      if (data.createLease.success) {
+        toast.success('Lease created successfully!');
+        refetchLeases();
+        closeLeaseModal();
+      } else {
+        toast.error(data.createLease.message || 'Failed to create lease');
+      }
+      setIsSubmitting(false);
+    },
+    onError: (error) => {
+      toast.error(error.message || 'Failed to create lease');
+      setIsSubmitting(false);
+    }
+  });
+
+  const [terminateLease] = useMutation(TERMINATE_LEASE, {
+    onCompleted: (data) => {
+      if (data.terminateLease.success) {
+        toast.success(`Lease ${selectedLease.lease_id} closed successfully!`);
+        refetchLeases();
+        setShowTerminateModal(false);
+        setSelectedLease(null);
+        setTerminationDate('');
+        setTerminationReason('');
+      } else {
+        toast.error(data.terminateLease.message || 'Failed to terminate lease');
+      }
+    },
+    onError: (error) => {
+      toast.error(error.message || 'Failed to terminate lease');
+    }
+  });
+
+  // Extract leases from API response
+  const leases = leasesData?.getAllLeases?.leases || [];
+
+  // Transform API data for display (map API fields to UI-expected format)
+  const transformedLeases = useMemo(() => {
+    return leases.map(lease => ({
+      lease_id: lease.lease_id,
+      room_id: lease.room_id,
+      building_id: lease.building_id,
+      building_name: lease.building?.name || 'Unknown Building',
+      room_number: lease.room?.roomNumber || 'N/A',
+      floor: lease.room?.floor || 0,
+      lease_start_date: lease.start_date,
+      lease_end_date: lease.end_date,
+      monthly_rent: lease.monthly_rent,
+      status: lease.status?.code?.toLowerCase() || 'active',
+      tenants: (lease.tenants || []).map(tenant => ({
+        tenant_id: tenant.tenant_id,
+        first_name: tenant.first_name || '',
+        last_name: tenant.family_name || '',
+        name: `${tenant.first_name || ''} ${tenant.family_name || ''}`.trim(),
+        email: tenant.email,
+        phone: tenant.phone,
+        role: tenant.tenant_id === lease.primary_tenant_id ? 'primary' : 'secondary',
+        move_in_date: lease.move_in_date,
+        status: 'active'
+      })),
+      termination_date: lease.termination_date,
+      termination_reason: lease.termination_reason,
+      created_date: lease.audit?.created_date,
+      created_by: lease.audit?.created_by
+    }));
+  }, [leases]);
+
+  // Filter leases
+  const filteredLeases = useMemo(() => {
+    return transformedLeases.filter(lease => {
+      const matchesStatus = statusFilter === 'all' || lease.status === statusFilter;
+      const matchesSearch = searchQuery === '' ||
+        lease.building_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        lease.room_number.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        lease.tenants.some(t => t.name.toLowerCase().includes(searchQuery.toLowerCase())) ||
+        lease.lease_id.toLowerCase().includes(searchQuery.toLowerCase());
+      return matchesStatus && matchesSearch;
+    });
+  }, [transformedLeases, statusFilter, searchQuery]);
+
   // Calculate statistics
-  const stats = {
-    total: mockLeases.length,
-    active: mockLeases.filter(l => l.status === 'active').length,
-    expired: mockLeases.filter(l => l.status === 'expired').length,
-    closed: mockLeases.filter(l => l.status === 'closed').length,
-    totalRevenue: mockLeases
+  const stats = useMemo(() => ({
+    total: transformedLeases.length,
+    active: transformedLeases.filter(l => l.status === 'active').length,
+    expired: transformedLeases.filter(l => l.status === 'expired').length,
+    closed: transformedLeases.filter(l => l.status === 'closed').length,
+    totalRevenue: transformedLeases
       .filter(l => l.status === 'active')
-      .reduce((sum, l) => sum + l.monthly_rent, 0)
-  };
+      .reduce((sum, l) => sum + (l.monthly_rent || 0), 0)
+  }), [transformedLeases]);
 
   const handleViewLease = (lease) => {
     setSelectedLease(lease);
@@ -253,10 +150,15 @@ const Leases = () => {
   };
 
   const confirmCloseLease = () => {
-    toast.success(`Lease ${selectedLease.lease_id} closed successfully!`);
-    setShowTerminateModal(false);
-    setSelectedLease(null);
-    setTerminationDate('');
+    terminateLease({
+      variables: {
+        lease_id: selectedLease.lease_id,
+        input: {
+          termination_date: terminationDate,
+          reason: terminationReason || null
+        }
+      }
+    });
   };
 
   // Lease Wizard Handlers
@@ -268,35 +170,30 @@ const Leases = () => {
     setCurrentStep(prev => Math.max(prev - 1, 1));
   };
 
-  const handleSubmitLease = (e) => {
+  const handleSubmitLease = (e, wizardData) => {
     e.preventDefault();
     setIsSubmitting(true);
 
-    // Simulate API call
-    setTimeout(() => {
-      toast.success('Lease created successfully!');
-      setShowAddModal(false);
-      setCurrentStep(1);
-      setLeaseFormData({
-        propertyId: '',
-        roomId: '',
-        roomNumber: '',
-        floor: '',
-        capacity: 0,
-        rent: '',
-        tenantId: '',
-        tenantName: '',
-        tenantEmail: '',
-        tenantPhone: '',
-        startDate: '',
-        endDate: '',
-        isOpenEnded: false,
-        moveInDate: '',
-        notes: '',
-        isAddingRoommate: false
-      });
-      setIsSubmitting(false);
-    }, 1500);
+    // Build the lease input from wizard data
+    const leaseInput = {
+      room_id: wizardData.roomId,
+      tenant_ids: wizardData.selectedTenantIds || [wizardData.tenantId],
+      primary_tenant_id: wizardData.primaryTenantId || wizardData.tenantId,
+      start_date: wizardData.startDate,
+      end_date: wizardData.isOpenEnded ? null : wizardData.endDate,
+      is_open_ended: wizardData.isOpenEnded || false,
+      monthly_rent: parseFloat(wizardData.rent),
+      move_in_date: wizardData.moveInDate,
+      includes_water: wizardData.includesWater || false,
+      includes_electric: wizardData.includesElectric || false,
+      notes: wizardData.notes || null
+    };
+
+    createLease({
+      variables: {
+        input: leaseInput
+      }
+    });
   };
 
   const closeLeaseModal = () => {
@@ -552,7 +449,39 @@ const Leases = () => {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-neutral-200">
-                {filteredLeases.length === 0 ? (
+                {leasesLoading ? (
+                  <tr>
+                    <td colSpan="8" className="px-4 py-12 text-center">
+                      <div className="flex flex-col items-center gap-3">
+                        <svg className="w-10 h-10 text-primary-600 animate-spin" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        <p className="text-sm text-neutral-500">Loading leases...</p>
+                      </div>
+                    </td>
+                  </tr>
+                ) : (leasesError || leasesData?.getAllLeases?.success === false) ? (
+                  <tr>
+                    <td colSpan="8" className="px-4 py-12 text-center">
+                      <div className="flex flex-col items-center gap-3">
+                        <svg className="w-12 h-12 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                        </svg>
+                        <p className="text-lg font-medium text-red-600">Failed to Load Leases</p>
+                        <p className="text-sm text-red-500 max-w-md">
+                          {leasesError?.message || leasesData?.getAllLeases?.message || 'Unknown error'}
+                        </p>
+                        <button
+                          onClick={() => refetchLeases()}
+                          className="mt-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 text-sm font-medium"
+                        >
+                          Retry
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ) : filteredLeases.length === 0 ? (
                   <tr>
                     <td colSpan="8" className="px-4 py-8 text-center text-sm text-neutral-500">
                       No leases found matching your criteria
@@ -586,13 +515,13 @@ const Leases = () => {
                         <td className="px-4 sm:px-5 py-4">
                           <div className="flex items-center gap-2">
                             <div className="flex -space-x-2">
-                              {lease.tenants.slice(0, 3).map((tenant, idx) => (
+                              {lease.tenants.slice(0, 3).map((tenant) => (
                                 <div
                                   key={tenant.tenant_id}
                                   className="w-8 h-8 rounded-full bg-gradient-to-br from-primary-400 to-primary-600 border-2 border-white flex items-center justify-center text-white text-xs font-semibold"
                                   title={tenant.name}
                                 >
-                                  {tenant.first_name[0]}{tenant.last_name[0]}
+                                  {(tenant.first_name || '?')[0]}{(tenant.last_name || '?')[0]}
                                 </div>
                               ))}
                             </div>
@@ -615,13 +544,13 @@ const Leases = () => {
                         </td>
 
                         <td className="px-4 sm:px-5 py-4">
-                          <div className="text-sm font-semibold text-neutral-900">₱{lease.monthly_rent.toLocaleString()}</div>
+                          <div className="text-sm font-semibold text-neutral-900">₱{(lease.monthly_rent || 0).toLocaleString()}</div>
                           <div className="text-xs text-neutral-500">per month</div>
                         </td>
 
                         <td className="px-4 sm:px-5 py-4">
                           <span className={`px-3 py-1 rounded-full text-xs font-semibold border ${getStatusColor(lease.status)}`}>
-                            {lease.status.charAt(0).toUpperCase() + lease.status.slice(1)}
+                            {(lease.status || 'unknown').charAt(0).toUpperCase() + (lease.status || 'unknown').slice(1)}
                           </span>
                         </td>
 
@@ -876,6 +805,19 @@ const Leases = () => {
                   onChange={(e) => setTerminationDate(e.target.value)}
                   className="w-full input-field"
                   required
+                />
+              </div>
+
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-neutral-700 mb-2">
+                  Reason for Closure (Optional)
+                </label>
+                <textarea
+                  value={terminationReason}
+                  onChange={(e) => setTerminationReason(e.target.value)}
+                  className="w-full input-field"
+                  rows="2"
+                  placeholder="e.g., Tenant requested early termination, lease violation, etc."
                 />
               </div>
 
