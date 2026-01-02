@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useQuery } from '@apollo/client';
+import { useQuery } from '@apollo/client/react';
 import DashboardLayout from '../components/DashboardLayout';
 import TenantWizard from '../components/TenantWizard';
 import { GET_ALL_PROPERTIES, GET_ALL_ROOMS } from '../lib/graphql-queries';
