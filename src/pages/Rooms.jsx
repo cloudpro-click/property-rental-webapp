@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useQuery, useLazyQuery, useMutation } from '@apollo/client/react';
+import { useQuery, useLazyQuery, useMutation, useApolloClient } from '@apollo/client/react';
 import toast from 'react-hot-toast';
 import DashboardLayout from '../components/DashboardLayout';
 import RoomWizard from '../components/RoomWizard';
@@ -7,6 +7,7 @@ import ConfirmDialog from '../components/ConfirmDialog';
 import { GET_ALL_AMENITIES, GET_ALL_PROPERTIES, GET_ALL_ROOMS, GET_ROOMS_BY_BUILDING, CREATE_ROOM, UPDATE_ROOM, DELETE_ROOM } from '../lib/graphql-queries';
 
 const Rooms = () => {
+  const apolloClient = useApolloClient();
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingRoom, setEditingRoom] = useState(null);
   const [selectedBuilding, setSelectedBuilding] = useState('all');
@@ -19,17 +20,18 @@ const Rooms = () => {
   const [showRemoveTenantConfirm, setShowRemoveTenantConfirm] = useState(false);
   const [openMenuId, setOpenMenuId] = useState(null);
 
-  // GraphQL Query - Fetch all amenities
+  // GraphQL Query - Fetch all amenities (lookup data - can be cached)
   const { data: amenitiesData, loading: amenitiesLoading } = useQuery(GET_ALL_AMENITIES, {
-    fetchPolicy: 'cache-and-network',
+    fetchPolicy: 'cache-first', // Lookup data can be cached
     onError: (error) => {
       console.error('Error fetching amenities:', error);
     }
   });
 
-  // GraphQL Query - Fetch all buildings/properties
+  // GraphQL Query - Fetch all buildings/properties (transactional - real-time)
   const { data: buildingsData, loading: buildingsLoading } = useQuery(GET_ALL_PROPERTIES, {
-    fetchPolicy: 'cache-and-network',
+    fetchPolicy: 'network-only', // Transactional data must be real-time
+    nextFetchPolicy: 'network-only',
     onError: (error) => {
       console.error('Error fetching buildings:', error);
     }
@@ -43,9 +45,13 @@ const Rooms = () => {
         offset: 0
       }
     },
-    fetchPolicy: 'cache-and-network',
+    fetchPolicy: 'network-only',
+    nextFetchPolicy: 'network-only',
     onError: (error) => {
       console.error('Error fetching all rooms:', error);
+    },
+    onCompleted: (data) => {
+      console.log('GET_ALL_ROOMS completed:', data);
     }
   });
 
