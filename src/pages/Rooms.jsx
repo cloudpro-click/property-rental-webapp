@@ -1,15 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import { useQuery, useMutation } from '@apollo/client/react';
+import { useQuery, useLazyQuery, useMutation } from '@apollo/client/react';
 import toast from 'react-hot-toast';
 import DashboardLayout from '../components/DashboardLayout';
 import RoomWizard from '../components/RoomWizard';
 import ConfirmDialog from '../components/ConfirmDialog';
-import { GET_ALL_AMENITIES, GET_ALL_PROPERTIES, GET_ALL_ROOMS, CREATE_ROOM, UPDATE_ROOM, DELETE_ROOM } from '../lib/graphql-queries';
+import { GET_ALL_AMENITIES, GET_ALL_PROPERTIES, GET_ALL_ROOMS, GET_ROOMS_BY_BUILDING, CREATE_ROOM, UPDATE_ROOM, DELETE_ROOM } from '../lib/graphql-queries';
 
 const Rooms = () => {
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingRoom, setEditingRoom] = useState(null);
   const [selectedBuilding, setSelectedBuilding] = useState('all');
+  const [showDeleted, setShowDeleted] = useState(true);
   const [currentStep, setCurrentStep] = useState(1);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [roomToDelete, setRoomToDelete] = useState(null);
@@ -34,13 +35,55 @@ const Rooms = () => {
     }
   });
 
-  // GraphQL Query - Fetch all rooms
-  const { data: roomsData, loading: roomsLoading, error: roomsError, refetch: refetchRooms } = useQuery(GET_ALL_ROOMS, {
+  // GraphQL Query - Fetch all rooms (always fetch for dropdown counts)
+  const { data: allRoomsData, loading: allRoomsLoading, refetch: refetchAllRooms } = useQuery(GET_ALL_ROOMS, {
+    variables: {
+      page: {
+        limit: 100,
+        offset: 0
+      }
+    },
     fetchPolicy: 'cache-and-network',
     onError: (error) => {
-      console.error('Error fetching rooms:', error);
+      console.error('Error fetching all rooms:', error);
     }
   });
+
+  // GraphQL Lazy Query - Fetch rooms by building (used when a specific building is selected)
+  const [getRoomsByBuilding, { data: buildingRoomsData, loading: buildingRoomsLoading }] = useLazyQuery(GET_ROOMS_BY_BUILDING, {
+    fetchPolicy: 'network-only', // Always fetch fresh data from network
+    onError: (error) => {
+      console.error('Error fetching rooms by building:', error);
+    }
+  });
+
+  // Trigger getRoomsByBuilding when a specific building is selected
+  useEffect(() => {
+    if (selectedBuilding !== 'all') {
+      getRoomsByBuilding({
+        variables: {
+          building_id: selectedBuilding
+        }
+      });
+    }
+  }, [selectedBuilding, getRoomsByBuilding]);
+
+  // Determine which data to use based on selected building
+  const roomsData = selectedBuilding === 'all' ? allRoomsData : buildingRoomsData;
+  const roomsLoading = selectedBuilding === 'all' ? allRoomsLoading : buildingRoomsLoading;
+
+  // Refetch function that works for both queries
+  const refetchRooms = () => {
+    if (selectedBuilding === 'all') {
+      refetchAllRooms();
+    } else {
+      getRoomsByBuilding({
+        variables: {
+          building_id: selectedBuilding
+        }
+      });
+    }
+  };
 
   // GraphQL Mutations for rooms
   const [createRoom, { loading: createLoading }] = useMutation(CREATE_ROOM, {
@@ -108,8 +151,15 @@ const Rooms = () => {
     { id: 6, building: 'Building C', roomNumber: '102', floor: '1', rent: '₱6,800', status: 'vacant', tenant: null, tenantEmail: null, tenantPhone: null, moveInDate: null, electricMeter: 'EM-006-2024', capacity: '2', size: '20', amenities: 'Wi-Fi', description: '' },
   ]);
 
-  // Get rooms from GraphQL response or use hardcoded data as fallback
-  const apiRooms = roomsData?.getAllRooms?.rooms || [];
+  // Get rooms from GraphQL response based on which query was used
+  const apiRooms = selectedBuilding === 'all'
+    ? (roomsData?.getAllRooms?.rooms || [])
+    : (roomsData?.getRoomsByBuilding?.rooms || []);
+
+  // Debug: Log the API rooms to check for deleted field
+  console.log('API Rooms:', apiRooms);
+  console.log('Deleted rooms count:', apiRooms.filter(r => r.deleted).length);
+  console.log('Selected building:', selectedBuilding);
 
   // Merge API rooms with hardcoded rooms (transform API rooms to match local structure)
   const transformedApiRooms = apiRooms.map(room => ({
@@ -130,11 +180,47 @@ const Rooms = () => {
     size: room.size?.toString() || '',
     amenities: room.amenities || '',
     description: room.description || '',
-    hasSeparateMeter: room.hasSeparateMeter
+    hasSeparateMeter: room.hasSeparateMeter,
+    deleted: room.deleted || false,
+    deletedBy: room.audit?.deleted_by || null,
+    deletedDate: room.audit?.deleted_date || null
   }));
 
   // Combine API rooms with hardcoded rooms for now (later we'll use only API rooms)
-  const allRooms = [...transformedApiRooms, ...rooms.filter(r => !transformedApiRooms.find(ar => ar.roomNumber === r.roomNumber && ar.building === r.building))];
+  // When a specific building is selected, only use API data (don't mix with hardcoded data)
+  const allRooms = selectedBuilding !== 'all'
+    ? transformedApiRooms
+    : [...transformedApiRooms, ...rooms.filter(r => !transformedApiRooms.find(ar => ar.roomNumber === r.roomNumber && ar.building === r.building))];
+
+  // For room counts in dropdown, we need to fetch all rooms regardless of filter
+  // Use allRoomsData if available, otherwise calculate from current data
+  const roomsForCounting = React.useMemo(() => {
+    if (allRoomsData?.getAllRooms?.rooms) {
+      return allRoomsData.getAllRooms.rooms.map(room => ({
+        buildingId: room.building_id,
+        deleted: room.deleted || false
+      }));
+    }
+    return allRooms.map(room => ({
+      buildingId: room.buildingId,
+      deleted: room.deleted || false
+    }));
+  }, [allRoomsData, allRooms]);
+
+  // Calculate actual room count for each building (excluding deleted rooms)
+  const buildingRoomCounts = React.useMemo(() => {
+    const counts = {};
+    roomsForCounting.forEach(room => {
+      if (room.buildingId && !room.deleted) {
+        counts[room.buildingId] = (counts[room.buildingId] || 0) + 1;
+      }
+    });
+    return counts;
+  }, [roomsForCounting]);
+
+  // Debug: Log all rooms and deleted rooms
+  console.log('All Rooms (combined):', allRooms);
+  console.log('Deleted rooms in allRooms:', allRooms.filter(r => r.deleted));
 
   // Lock body scroll when modal is open
   useEffect(() => {
@@ -162,10 +248,13 @@ const Rooms = () => {
     amenities: ''
   });
 
-  // Filter rooms by selected building (using building_id for API data)
-  const filteredRooms = selectedBuilding === 'all'
-    ? allRooms
-    : allRooms.filter(room => room.buildingId === selectedBuilding || room.building === selectedBuilding);
+  // Filter rooms by deleted status only (building filter is now handled by the query)
+  let filteredRooms = allRooms;
+
+  // Filter out deleted rooms if showDeleted is false
+  if (!showDeleted) {
+    filteredRooms = filteredRooms.filter(room => !room.deleted);
+  }
 
   const handleNext = () => {
     setCurrentStep(currentStep + 1);
@@ -355,11 +444,14 @@ const Rooms = () => {
                 {buildingsLoading ? (
                   <option disabled>Loading...</option>
                 ) : (
-                  buildings.map((building) => (
-                    <option key={building.building_id} value={building.building_id}>
-                      {building.name} ({building.totalRooms || 0} rooms)
-                    </option>
-                  ))
+                  buildings.map((building) => {
+                    const actualRoomCount = buildingRoomCounts[building.building_id] || 0;
+                    return (
+                      <option key={building.building_id} value={building.building_id}>
+                        {building.name} ({actualRoomCount} {actualRoomCount === 1 ? 'room' : 'rooms'})
+                      </option>
+                    );
+                  })
                 )}
               </select>
               {/* Building Icon */}
@@ -377,19 +469,38 @@ const Rooms = () => {
             </div>
           </div>
 
-          {/* Quick Stats */}
-          <div className="flex items-center gap-4 text-sm">
+          {/* Quick Stats & Show Deleted Toggle */}
+          <div className="flex items-center gap-4 text-sm flex-wrap">
             <div className="flex items-center gap-2 px-3 py-1.5 bg-green-50 text-green-700 rounded-lg">
               <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
                 <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
               </svg>
-              <span className="font-medium">{filteredRooms.filter(r => r.status === 'occupied').length} Occupied</span>
+              <span className="font-medium">{allRooms.filter(r => !r.deleted && r.status === 'occupied').length} Occupied</span>
             </div>
             <div className="flex items-center gap-2 px-3 py-1.5 bg-neutral-100 text-neutral-700 rounded-lg">
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
               </svg>
-              <span className="font-medium">{filteredRooms.filter(r => r.status === 'vacant').length} Vacant</span>
+              <span className="font-medium">{allRooms.filter(r => !r.deleted && r.status === 'vacant').length} Vacant</span>
+            </div>
+            <div className="flex items-center gap-2 px-3 py-1.5 bg-red-50 text-red-700 rounded-lg">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+              </svg>
+              <span className="font-medium">{allRooms.filter(r => r.deleted).length} Deleted</span>
+            </div>
+
+            {/* Show Deleted Toggle */}
+            <div className="flex items-center gap-2 ml-auto">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={showDeleted}
+                  onChange={(e) => setShowDeleted(e.target.checked)}
+                  className="w-4 h-4 text-primary-600 bg-white border-neutral-300 rounded focus:ring-primary-500 focus:ring-2"
+                />
+                <span className="text-sm text-neutral-700 font-medium">Show deleted rooms</span>
+              </label>
             </div>
           </div>
         </div>
@@ -397,75 +508,99 @@ const Rooms = () => {
 
       {/* Rooms Table */}
       <div className="card overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-neutral-50 border-b border-neutral-200">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
-                  Building
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
-                  Room #
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
-                  Floor
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
-                  Electric Meter
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
-                  Capacity
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
-                  Rent
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
-                  Tenant
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
-                  Status
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
-                  Actions
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-neutral-200">
-              {filteredRooms.map((room) => (
-                <tr key={room.id} className="hover:bg-neutral-50 transition-colors">
+        {roomsLoading ? (
+          <div className="flex items-center justify-center py-12">
+
+            <div className="flex flex-col items-center gap-3">
+              <svg className="animate-spin h-8 w-8 text-primary-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+              <p className="text-sm text-neutral-600">Loading rooms...</p>
+            </div>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="bg-neutral-50 border-b border-neutral-200">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
+                    Building
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
+                    Room #
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
+                    Floor
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
+                    Electric Meter
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
+                    Capacity
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
+                    Rent
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
+                    Tenant
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
+                    Status
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
+                    Actions
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-neutral-200">
+                {filteredRooms.map((room) => (
+                <tr key={room.id} className={`transition-colors ${room.deleted ? 'bg-red-50 border-l-4 border-red-500' : 'hover:bg-neutral-50'}`}>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm font-medium text-neutral-900">{room.building}</div>
+                    <div className={`text-sm font-medium ${room.deleted ? 'text-neutral-500' : 'text-neutral-900'}`}>
+                      {room.building}
+                    </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm font-semibold text-primary-600">{room.roomNumber}</div>
+                    <div className="flex items-center gap-2">
+                      <span className={`text-sm font-semibold ${room.deleted ? 'text-neutral-500' : 'text-primary-600'}`}>
+                        {room.roomNumber}
+                      </span>
+                      {room.deleted && (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-red-100 text-red-800 border border-red-300">
+                          DELETED
+                        </span>
+                      )}
+                    </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-neutral-900">{room.floor}</div>
+                    <div className={`text-sm ${room.deleted ? 'text-neutral-400' : 'text-neutral-900'}`}>{room.floor}</div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex items-center text-sm text-neutral-700">
-                      <svg className="w-4 h-4 mr-1 text-accent-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <div className={`flex items-center text-sm ${room.deleted ? 'text-neutral-400' : 'text-neutral-700'}`}>
+                      <svg className={`w-4 h-4 mr-1 ${room.deleted ? 'text-neutral-400' : 'text-accent-600'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
                       </svg>
                       {room.electricMeter}
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex items-center text-sm text-neutral-900">
-                      <svg className="w-4 h-4 mr-1 text-neutral-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <div className={`flex items-center text-sm ${room.deleted ? 'text-neutral-400' : 'text-neutral-900'}`}>
+                      <svg className={`w-4 h-4 mr-1 ${room.deleted ? 'text-neutral-400' : 'text-neutral-500'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
                       </svg>
                       {room.capacity} {room.capacity === '1' ? 'person' : 'persons'}
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm font-semibold text-neutral-900">{room.rent}</div>
+                    <div className={`text-sm font-semibold ${room.deleted ? 'text-neutral-400' : 'text-neutral-900'}`}>{room.rent}</div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     {room.tenant ? (
                       <button
-                        onClick={() => handleViewTenant(room)}
-                        className="text-sm text-primary-600 hover:text-primary-900 font-medium flex items-center"
+                        onClick={() => !room.deleted && handleViewTenant(room)}
+                        disabled={room.deleted}
+                        className={`text-sm font-medium flex items-center ${room.deleted ? 'text-neutral-400 cursor-not-allowed' : 'text-primary-600 hover:text-primary-900'}`}
                       >
                         <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
@@ -477,117 +612,130 @@ const Rooms = () => {
                     )}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                      room.status === 'occupied'
-                        ? 'bg-green-100 text-green-800'
-                        : 'bg-neutral-100 text-neutral-800'
-                    }`}>
-                      {room.status === 'occupied' ? 'Occupied' : 'Vacant'}
-                    </span>
+                    {room.deleted ? (
+                      <span className="px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">
+                        Deleted
+                      </span>
+                    ) : (
+                      <span className={`px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                        room.status === 'occupied'
+                          ? 'bg-green-100 text-green-800'
+                          : 'bg-neutral-100 text-neutral-800'
+                      }`}>
+                        {room.status === 'occupied' ? 'Occupied' : 'Vacant'}
+                      </span>
+                    )}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm">
-                    <div className="relative">
-                      <button
-                        onClick={() => setOpenMenuId(openMenuId === room.id ? null : room.id)}
-                        className="p-2 hover:bg-neutral-100 rounded-lg transition-colors"
-                      >
-                        <svg className="w-5 h-5 text-neutral-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
-                        </svg>
-                      </button>
+                    {room.deleted ? (
+                      <div className="text-xs text-neutral-400 italic">
+                        No actions available
+                      </div>
+                    ) : (
+                      <div className="relative">
+                        <button
+                          onClick={() => setOpenMenuId(openMenuId === room.id ? null : room.id)}
+                          className="p-2 hover:bg-neutral-100 rounded-lg transition-colors"
+                        >
+                          <svg className="w-5 h-5 text-neutral-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
+                          </svg>
+                        </button>
 
-                      {/* Dropdown Menu */}
-                      {openMenuId === room.id && (
-                        <>
-                          {/* Backdrop to close menu */}
-                          <div
-                            className="fixed inset-0 z-10"
-                            onClick={() => setOpenMenuId(null)}
-                          ></div>
+                        {/* Dropdown Menu */}
+                        {openMenuId === room.id && (
+                          <>
+                            {/* Backdrop to close menu */}
+                            <div
+                              className="fixed inset-0 z-10"
+                              onClick={() => setOpenMenuId(null)}
+                            ></div>
 
-                          {/* Menu */}
-                          <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-neutral-200 py-1 z-20">
-                            <button
-                              onClick={() => {
-                                handleEditRoom(room);
-                                setOpenMenuId(null);
-                              }}
-                              className="w-full px-4 py-2 text-left text-sm text-neutral-700 hover:bg-neutral-50 flex items-center"
-                            >
-                              <svg className="w-4 h-4 mr-2 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                              </svg>
-                              Edit Room
-                            </button>
-
-                            {room.status === 'occupied' ? (
-                              <>
-                                <button
-                                  onClick={() => {
-                                    handleViewTenant(room);
-                                    setOpenMenuId(null);
-                                  }}
-                                  className="w-full px-4 py-2 text-left text-sm text-neutral-700 hover:bg-neutral-50 flex items-center"
-                                >
-                                  <svg className="w-4 h-4 mr-2 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                                  </svg>
-                                  View Tenant
-                                </button>
-
-                                <button
-                                  onClick={() => {
-                                    handleRemoveTenant(room);
-                                    setOpenMenuId(null);
-                                  }}
-                                  className="w-full px-4 py-2 text-left text-sm text-accent-700 hover:bg-accent-50 flex items-center"
-                                >
-                                  <svg className="w-4 h-4 mr-2 text-accent-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7a4 4 0 11-8 0 4 4 0 018 0zM9 14a6 6 0 00-6 6v1h12v-1a6 6 0 00-6-6zM21 12h-6" />
-                                  </svg>
-                                  Remove Tenant
-                                </button>
-                              </>
-                            ) : (
+                            {/* Menu */}
+                            <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-neutral-200 py-1 z-20">
                               <button
                                 onClick={() => {
-                                  // Navigate to Tenants page or open add tenant modal
+                                  handleEditRoom(room);
                                   setOpenMenuId(null);
-                                  // TODO: Implement add tenant functionality
                                 }}
-                                className="w-full px-4 py-2 text-left text-sm text-green-700 hover:bg-green-50 flex items-center"
+                                className="w-full px-4 py-2 text-left text-sm text-neutral-700 hover:bg-neutral-50 flex items-center"
                               >
-                                <svg className="w-4 h-4 mr-2 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+                                <svg className="w-4 h-4 mr-2 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                                 </svg>
-                                Add Tenant
+                                Edit Room
                               </button>
-                            )}
 
-                            <div className="border-t border-neutral-200 my-1"></div>
+                              {room.status === 'occupied' ? (
+                                <>
+                                  <button
+                                    onClick={() => {
+                                      handleViewTenant(room);
+                                      setOpenMenuId(null);
+                                    }}
+                                    className="w-full px-4 py-2 text-left text-sm text-neutral-700 hover:bg-neutral-50 flex items-center"
+                                  >
+                                    <svg className="w-4 h-4 mr-2 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                                    </svg>
+                                    View Tenant
+                                  </button>
 
-                            <button
-                              onClick={() => {
-                                handleDeleteRoom(room);
-                                setOpenMenuId(null);
-                              }}
-                              className="w-full px-4 py-2 text-left text-sm text-secondary-700 hover:bg-secondary-50 flex items-center"
-                            >
-                              <svg className="w-4 h-4 mr-2 text-secondary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                              </svg>
-                              Delete Room
-                            </button>
-                          </div>
-                        </>
-                      )}
-                    </div>
+                                  <button
+                                    onClick={() => {
+                                      handleRemoveTenant(room);
+                                      setOpenMenuId(null);
+                                    }}
+                                    className="w-full px-4 py-2 text-left text-sm text-accent-700 hover:bg-accent-50 flex items-center"
+                                  >
+                                    <svg className="w-4 h-4 mr-2 text-accent-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7a4 4 0 11-8 0 4 4 0 018 0zM9 14a6 6 0 00-6 6v1h12v-1a6 6 0 00-6-6zM21 12h-6" />
+                                    </svg>
+                                    Remove Tenant
+                                  </button>
+                                </>
+                              ) : (
+                                <button
+                                  onClick={() => {
+                                    // Navigate to Tenants page or open add tenant modal
+                                    setOpenMenuId(null);
+                                    // TODO: Implement add tenant functionality
+                                  }}
+                                  className="w-full px-4 py-2 text-left text-sm text-green-700 hover:bg-green-50 flex items-center"
+                                >
+                                  <svg className="w-4 h-4 mr-2 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+                                  </svg>
+                                  Add Tenant
+                                </button>
+                              )}
+
+                              <div className="border-t border-neutral-200 my-1"></div>
+
+                              <button
+                                onClick={() => {
+                                  handleDeleteRoom(room);
+                                  setOpenMenuId(null);
+                                }}
+                                className="w-full px-4 py-2 text-left text-sm text-secondary-700 hover:bg-secondary-50 flex items-center"
+                              >
+                                <svg className="w-4 h-4 mr-2 text-secondary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                </svg>
+                                Delete Room
+                              </button>
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    )}
                   </td>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
 
       {/* Add Room Wizard Modal */}
@@ -707,6 +855,7 @@ const Rooms = () => {
                     handleSubmit={handleSubmit}
                     closeModal={closeModal}
                     isEditing={!!editingRoom}
+                    isSubmitting={createLoading || updateLoading}
                   />
                 </div>
               </form>
@@ -841,7 +990,7 @@ const Rooms = () => {
         onClose={() => setShowDeleteConfirm(false)}
         onConfirm={confirmDelete}
         title="Delete Room"
-        message={`Are you sure you want to delete Room ${roomToDelete?.roomNumber} in ${roomToDelete?.building}? This action cannot be undone.`}
+        message={`Are you sure you want to delete Room ${roomToDelete?.roomNumber} in ${roomToDelete?.building}?\n\nNote: The room will be marked as deleted but will remain in the system. The room number cannot be reused.`}
         confirmText="Delete"
         cancelText="Cancel"
         type="danger"

@@ -303,6 +303,7 @@ export const GET_ALL_ROOMS = gql`
         description
         amenities
         status
+        deleted
         tenant {
           tenant_id
           name
@@ -315,6 +316,8 @@ export const GET_ALL_ROOMS = gql`
           created_date
           modified_by
           modified_date
+          deleted_by
+          deleted_date
         }
       }
     }
@@ -371,6 +374,10 @@ export const GET_ROOMS_BY_BUILDING = gql`
       rooms {
         room_id
         building_id
+        building {
+          building_id
+          name
+        }
         roomNumber
         floor
         hasSeparateMeter
@@ -381,6 +388,7 @@ export const GET_ROOMS_BY_BUILDING = gql`
         description
         amenities
         status
+        deleted
         tenant {
           tenant_id
           name
@@ -393,6 +401,8 @@ export const GET_ROOMS_BY_BUILDING = gql`
           created_date
           modified_by
           modified_date
+          deleted_by
+          deleted_date
         }
       }
     }
