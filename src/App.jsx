@@ -9,6 +9,7 @@ import Dashboard from './pages/Dashboard';
 import Buildings from './pages/Buildings';
 import Rooms from './pages/Rooms';
 import Tenants from './pages/Tenants';
+import Leases from './pages/Leases';
 import Billing from './pages/Billing';
 import RentCollection from './pages/RentCollection';
 import Reports from './pages/Reports';
@@ -111,6 +112,11 @@ function App() {
           <Route path="/tenants" element={
             <ProtectedRoute>
               <Tenants />
+            </ProtectedRoute>
+          } />
+          <Route path="/leases" element={
+            <ProtectedRoute>
+              <Leases />
             </ProtectedRoute>
           } />
           <Route path="/billing" element={
