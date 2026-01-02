@@ -60,19 +60,49 @@ const TenantWizard = ({
         <div className="space-y-3 sm:space-y-4">
           <h4 className="text-base sm:text-lg font-semibold text-neutral-900 mb-2 sm:mb-3">Tenant Information</h4>
 
-          {/* Full Name */}
-          <div>
-            <label className="block text-sm font-medium text-neutral-700 mb-1.5">
-              Full Name <span className="text-secondary-500">*</span>
-            </label>
-            <input
-              type="text"
-              required
-              value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              className="input-field"
-              placeholder="Juan Dela Cruz"
-            />
+          {/* First Name and Last Name */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+            <div>
+              <label className="block text-sm font-medium text-neutral-700 mb-1.5">
+                First Name <span className="text-secondary-500">*</span>
+              </label>
+              <input
+                type="text"
+                required
+                value={formData.firstName}
+                onChange={(e) => {
+                  const firstName = e.target.value;
+                  setFormData({
+                    ...formData,
+                    firstName,
+                    name: `${firstName} ${formData.lastName || ''}`.trim()
+                  });
+                }}
+                className="input-field"
+                placeholder="Juan"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-neutral-700 mb-1.5">
+                Family Name/Last Name <span className="text-secondary-500">*</span>
+              </label>
+              <input
+                type="text"
+                required
+                value={formData.lastName}
+                onChange={(e) => {
+                  const lastName = e.target.value;
+                  setFormData({
+                    ...formData,
+                    lastName,
+                    name: `${formData.firstName || ''} ${lastName}`.trim()
+                  });
+                }}
+                className="input-field"
+                placeholder="Dela Cruz"
+              />
+            </div>
           </div>
 
           {/* Email and Phone */}
@@ -218,24 +248,55 @@ const TenantWizard = ({
             Add guardian or emergency contact information.
           </p>
 
-          {/* Guardian Name */}
-          <div>
-            <label className="block text-sm font-medium text-neutral-500 mb-1.5">
-              Guardian Full Name
-            </label>
-            <input
-              type="text"
-              value={formData.guarantorName}
-              onChange={(e) => setFormData({ ...formData, guarantorName: e.target.value })}
-              className="input-field"
-              placeholder="Maria Santos"
-            />
+          {/* Guardian First Name and Last Name */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+            <div>
+              <label className="block text-sm font-medium text-neutral-700 mb-1.5">
+                Guardian First Name <span className="text-secondary-500">*</span>
+              </label>
+              <input
+                type="text"
+                required
+                value={formData.guarantorFirstName}
+                onChange={(e) => {
+                  const guarantorFirstName = e.target.value;
+                  setFormData({
+                    ...formData,
+                    guarantorFirstName,
+                    guarantorName: `${guarantorFirstName} ${formData.guarantorLastName || ''}`.trim()
+                  });
+                }}
+                className="input-field"
+                placeholder="Maria"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-neutral-700 mb-1.5">
+                Guardian Family/Last Name <span className="text-secondary-500">*</span>
+              </label>
+              <input
+                type="text"
+                required
+                value={formData.guarantorLastName}
+                onChange={(e) => {
+                  const guarantorLastName = e.target.value;
+                  setFormData({
+                    ...formData,
+                    guarantorLastName,
+                    guarantorName: `${formData.guarantorFirstName || ''} ${guarantorLastName}`.trim()
+                  });
+                }}
+                className="input-field"
+                placeholder="Dela Cruz"
+              />
+            </div>
           </div>
 
           {/* Guardian Relationship - Searchable */}
           <div>
-            <label className="block text-sm font-medium text-neutral-500 mb-1.5">
-              Relationship to Tenant
+            <label className="block text-sm font-medium text-neutral-700 mb-1.5">
+              Relationship to Tenant <span className="text-secondary-500">*</span>
             </label>
             <div className="relative">
               <input
@@ -330,8 +391,8 @@ const TenantWizard = ({
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-neutral-500 mb-1.5">
-                Guardian Phone
+              <label className="block text-sm font-medium text-neutral-700 mb-1.5">
+                Guardian Phone <span className="text-secondary-500">*</span>
               </label>
               <div className="relative">
                 <input
@@ -340,6 +401,7 @@ const TenantWizard = ({
                   onChange={(e) => setFormData({ ...formData, guarantorPhone: e.target.value })}
                   className="input-field pr-10"
                   placeholder="+63 917 123 4567"
+                  required
                 />
                 <button
                   type="button"
@@ -497,7 +559,10 @@ const TenantWizard = ({
               handleNext();
             }}
             className="btn-primary disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base flex items-center gap-2"
-            disabled={currentStep === 1 && (!formData.name || !formData.email || !formData.phone || phoneCheckStatus === 'taken')}
+            disabled={
+              (currentStep === 1 && (!formData.firstName || !formData.lastName || !formData.email || !formData.phone || phoneCheckStatus === 'taken')) ||
+              (currentStep === 2 && (!formData.guarantorFirstName || !formData.guarantorLastName || !formData.guarantorRelationship || !formData.guarantorPhone))
+            }
           >
             <span className="hidden sm:inline">Next Step</span>
             <span className="sm:hidden">Next</span>

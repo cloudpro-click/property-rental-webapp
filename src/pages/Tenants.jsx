@@ -126,6 +126,8 @@ const Tenants = () => {
   ]);
 
   const [formData, setFormData] = useState({
+    firstName: '',
+    lastName: '',
     name: '',
     email: '',
     phone: '',
@@ -134,6 +136,8 @@ const Tenants = () => {
     idNumber: '',
     emergencyContactName: '',
     emergencyContactPhone: '',
+    guarantorFirstName: '',
+    guarantorLastName: '',
     guarantorName: '',
     guarantorRelationship: '',
     guarantorEmail: '',
@@ -189,6 +193,8 @@ const Tenants = () => {
 
     // Reset form
     setFormData({
+      firstName: '',
+      lastName: '',
       name: '',
       email: '',
       phone: '',
@@ -197,6 +203,8 @@ const Tenants = () => {
       idNumber: '',
       emergencyContactName: '',
       emergencyContactPhone: '',
+      guarantorFirstName: '',
+      guarantorLastName: '',
       guarantorName: '',
       guarantorRelationship: '',
       guarantorEmail: '',
@@ -215,6 +223,8 @@ const Tenants = () => {
     setCurrentStep(1);
     // Reset form
     setFormData({
+      firstName: '',
+      lastName: '',
       name: '',
       email: '',
       phone: '',
@@ -223,6 +233,8 @@ const Tenants = () => {
       idNumber: '',
       emergencyContactName: '',
       emergencyContactPhone: '',
+      guarantorFirstName: '',
+      guarantorLastName: '',
       guarantorName: '',
       guarantorRelationship: '',
       guarantorEmail: '',
@@ -238,6 +250,8 @@ const Tenants = () => {
   const fillDemoData = () => {
     const today = new Date().toISOString().split('T')[0];
     setFormData({
+      firstName: 'Carlos',
+      lastName: 'Rivera',
       name: 'Carlos Rivera',
       email: 'carlos.rivera@email.com',
       phone: '+63 922 678 9012',
@@ -255,6 +269,8 @@ const Tenants = () => {
       securityDeposit: '8500',
       advanceRent: '1',
       contractDuration: '12',
+      guarantorFirstName: 'Roberto',
+      guarantorLastName: 'Santos',
       guarantorName: 'Roberto Santos',
       guarantorRelationship: 'Parent',
       guarantorEmail: 'roberto.santos@email.com',
