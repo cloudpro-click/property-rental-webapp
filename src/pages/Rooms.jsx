@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useQuery, useLazyQuery, useMutation, useApolloClient } from '@apollo/client/react';
+import { useQuery, useLazyQuery, useMutation } from '@apollo/client/react';
 import toast from 'react-hot-toast';
 import DashboardLayout from '../components/DashboardLayout';
 import RoomWizard from '../components/RoomWizard';
@@ -7,7 +7,6 @@ import ConfirmDialog from '../components/ConfirmDialog';
 import { GET_ALL_AMENITIES, GET_ALL_PROPERTIES, GET_ALL_ROOMS, GET_ROOMS_BY_BUILDING, CREATE_ROOM, UPDATE_ROOM, DELETE_ROOM } from '../lib/graphql-queries';
 
 const Rooms = () => {
-  const apolloClient = useApolloClient();
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingRoom, setEditingRoom] = useState(null);
   const [selectedBuilding, setSelectedBuilding] = useState('all');
